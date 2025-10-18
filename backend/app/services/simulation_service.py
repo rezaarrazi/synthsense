@@ -1,7 +1,7 @@
-from typing import Dict, Any, List, TypedDict
+from typing import Dict, Any, List, TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.postgres import PostgresSaver
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from app.services.ai_service import LLMFactory, format_persona_profile, extract_likert_score
 from app.config import settings
 import asyncio

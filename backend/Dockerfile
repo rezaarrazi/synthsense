@@ -14,7 +14,7 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy dependency files
-COPY backend/pyproject.toml backend/requirements.txt ./
+COPY pyproject.toml requirements.txt ./
 
 # Install dependencies
 RUN uv pip install --system -r requirements.txt
@@ -38,7 +38,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY backend/ .
+COPY . .
 
 # Change ownership to app user
 RUN chown -R app:app /app

@@ -1,13 +1,14 @@
 # SynthSense Backend
 
-Backend API for SynthSense - Synthetic Consumer Research Platform.
+FastAPI backend for the SynthSense synthetic consumer research platform.
 
 ## Features
 
-- FastAPI with async PostgreSQL
-- Strawberry GraphQL API
-- LangChain/LangGraph for AI operations
-- JWT Authentication
+- FastAPI web framework
+- GraphQL API with Strawberry
+- PostgreSQL database with SQLAlchemy
+- JWT authentication
+- LangChain/LangGraph AI services
 - Docker support
 
 ## Development
@@ -16,9 +17,14 @@ Backend API for SynthSense - Synthetic Consumer Research Platform.
 # Install dependencies
 uv sync
 
-# Run development server
-uv run uvicorn app.main:app --reload
-
 # Run database migrations
 uv run alembic upgrade head
+
+# Start development server
+uv run uvicorn app.main:app --reload
 ```
+
+## API Documentation
+
+- REST API: http://localhost:8000/docs
+- GraphQL Playground: http://localhost:8000/graphql

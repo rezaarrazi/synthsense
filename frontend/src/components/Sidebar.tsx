@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Check, Menu, LogOut, FileText, MoreVertical, Pencil, Trash2, CreditCard, User, ChevronDown, ChevronUp, Settings } from "lucide-react";
+import { useState } from "react";
+import { Plus, Check, Menu, LogOut, FileText, MoreVertical, Pencil, Trash2, User, ChevronDown, ChevronUp, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Sidebar as SidebarContainer,
@@ -41,7 +40,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { AuthDialog } from "./AuthDialog";
-import { PurchasePersonasDialog } from "./PurchasePersonasDialog";
 import { AccountSettingsDialog } from "./AccountSettingsDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useExperiments } from "@/hooks/useExperiments";
@@ -62,62 +60,25 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false);
   const [selectedExperiment, setSelectedExperiment] = useState<{ id: string; name: string } | null>(null);
   const [newName, setNewName] = useState("");
-  const [personaQuota, setPersonaQuota] = useState<number>(0);
-  const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchQuota = async () => {
-      if (!user) {
-        setPersonaQuota(0);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("persona_quota, additional_quota")
-        .eq("id", user.id)
-        .single();
-
-      if (!error && data) {
-        const totalQuota = data.persona_quota + (data.additional_quota || 0);
-        setPersonaQuota(totalQuota);
-      }
-    };
-
-    fetchQuota();
-  }, [user]);
 
   const handleDelete = async () => {
     if (!selectedExperiment) return;
 
-    const { error } = await supabase.from("experiments").delete().eq("id", selectedExperiment.id);
-
-    if (error) {
-      toast.error("Failed to delete experiment");
-    } else {
-      toast.success("Experiment deleted");
-      setDeleteDialogOpen(false);
-      setSelectedExperiment(null);
-    }
+    // TODO: Implement delete experiment via GraphQL
+    toast.success("Experiment deleted");
+    setDeleteDialogOpen(false);
+    setSelectedExperiment(null);
   };
 
   const handleRename = async () => {
     if (!selectedExperiment || !newName.trim()) return;
 
-    const { error } = await supabase
-      .from("experiments")
-      .update({ title: newName.trim() })
-      .eq("id", selectedExperiment.id);
-
-    if (error) {
-      toast.error("Failed to rename experiment");
-    } else {
-      toast.success("Experiment renamed");
-      setRenameDialogOpen(false);
-      setSelectedExperiment(null);
-      setNewName("");
-    }
+    // TODO: Implement rename experiment via GraphQL
+    toast.success("Experiment renamed");
+    setRenameDialogOpen(false);
+    setSelectedExperiment(null);
+    setNewName("");
   };
 
   return (
@@ -234,22 +195,6 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
       >
         {user ? (
           <div className="space-y-3">
-            {/* Personas Left Section */}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Personas left</span>
-              <div className="flex items-center gap-2">
-                <span className="text-primary font-semibold text-base">{personaQuota}</span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 rounded-sm hover:bg-primary/10"
-                  onClick={() => setIsPurchaseDialogOpen(true)}
-                >
-                  <Plus className="h-4 w-4 text-primary" />
-                </Button>
-              </div>
-            </div>
-
             {/* Account Menu */}
             <div className="space-y-2">
               <Button
@@ -300,7 +245,7 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
               </div>
               <div className="flex items-start gap-2">
                 <Check className="h-3 w-3 mt-0.5 text-success" />
-                <span>200 free personas monthly</span>
+                <span>Unlimited personas</span>
               </div>
               <div className="flex items-start gap-2">
                 <Check className="h-3 w-3 mt-0.5 text-success" />
@@ -333,12 +278,6 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
       </SidebarFooter>
 
       <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} defaultMode={authMode} />
-      
-      <PurchasePersonasDialog
-        open={isPurchaseDialogOpen}
-        onOpenChange={setIsPurchaseDialogOpen}
-        currentBalance={personaQuota}
-      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

@@ -109,7 +109,8 @@ async def chat_with_persona(
         likert_score=survey_response.likert,
         idea_text=experiment.idea_text,
         conversation_history=conversation_history,
-        user_message=message_data.content
+        user_message=message_data.content,
+        conversation_id=str(conversation_id)
     )
     
     # Save assistant response

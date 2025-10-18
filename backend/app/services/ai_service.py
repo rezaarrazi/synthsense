@@ -1,8 +1,8 @@
 from typing import Optional, Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.memory import ConversationBufferMemory
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.checkpoint.postgres import PostgresSaver
 from app.config import settings
 
 
@@ -95,12 +95,41 @@ Respond with ONLY a single number (1, 2, 3, 4, or 5). No explanation needed."""
     return max(1, min(5, score))
 
 
+from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.checkpoint.postgres import PostgresSaver
+import asyncio
+
+
 class PersonaChatChain:
-    """LangChain-based chat service for persona conversations."""
+    """LangGraph-based chat service for persona conversations with PostgreSQL persistence."""
     
     def __init__(self):
         self.llm = LLMFactory.create_llm(temperature=0.7, max_tokens=300)
-        self.memory = ConversationBufferMemory(return_messages=True)
+        self.checkpointer = None
+        self.graph = None
+    
+    async def _setup_graph(self):
+        """Initialize the LangGraph with PostgresSaver."""
+        if self.graph is not None:
+            return
+            
+        # Initialize PostgresSaver
+        self.checkpointer = PostgresSaver.from_conn_string(settings.DATABASE_URL)
+        await self.checkpointer.setup()
+        
+        # Define the chat node
+        async def chat_node(state: MessagesState):
+            response = await self.llm.ainvoke(state["messages"])
+            return {"messages": [response]}
+        
+        # Build the graph
+        builder = StateGraph(MessagesState)
+        builder.add_node("chat", chat_node)
+        builder.add_edge(START, "chat")
+        builder.add_edge("chat", END)
+        
+        # Compile with checkpointer
+        self.graph = builder.compile(checkpointer=self.checkpointer)
     
     async def chat_with_persona(
         self,
@@ -109,10 +138,14 @@ class PersonaChatChain:
         likert_score: int,
         idea_text: str,
         conversation_history: list,
-        user_message: str
+        user_message: str,
+        conversation_id: str
     ) -> str:
-        """Generate persona response based on context and conversation history."""
+        """Generate persona response using LangGraph with persistent memory."""
         
+        await self._setup_graph()
+        
+        # Build system prompt
         system_prompt = f"""You are participating in a consumer research follow-up interview. You must stay in character as the following persona:
 
 {persona_profile}
@@ -132,7 +165,7 @@ INSTRUCTIONS:
 - If asked to change your mind, respond realistically based on your persona's values and situation
 - Keep responses concise (2-4 sentences unless asked for more detail)"""
 
-        # Build conversation context
+        # Build initial messages
         messages = [SystemMessage(content=system_prompt)]
         
         # Add conversation history
@@ -145,6 +178,18 @@ INSTRUCTIONS:
         # Add current user message
         messages.append(HumanMessage(content=user_message))
         
-        # Generate response
-        response = await self.llm.ainvoke(messages)
-        return response.content.strip()
+        # Configure thread for this conversation
+        config = {
+            "configurable": {
+                "thread_id": conversation_id
+            }
+        }
+        
+        # Run the graph
+        result = await self.graph.ainvoke(
+            {"messages": messages},
+            config
+        )
+        
+        # Return the last message content
+        return result["messages"][-1].content.strip()

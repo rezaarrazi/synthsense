@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from '@apollo/client';
 import { RUN_SIMULATION_MUTATION, GET_PERSONA_GROUPS_QUERY } from '../graphql/queries';
 import { useAuth } from './useAuth';
@@ -45,25 +45,28 @@ export const useSimulation = (onAuthRequired?: () => void) => {
   });
 
   // Run simulation mutation
-  const [runSimulationMutation] = useMutation(RUN_SIMULATION_MUTATION, {
-    onCompleted: (data) => {
-      setResult(data.runSimulation);
+  const [runSimulationMutation, { data: simulationData, error: simulationError }] = useMutation(RUN_SIMULATION_MUTATION);
+
+  // Handle simulation results
+  useEffect(() => {
+    if (simulationData?.runSimulation) {
+      setResult(simulationData.runSimulation);
       setIsRunning(false);
       toast({
         title: "Simulation complete!",
-        description: `Processed ${data.runSimulation.totalProcessed} personas successfully`,
+        description: `Processed ${simulationData.runSimulation.totalProcessed} personas successfully`,
       });
-    },
-    onError: (error) => {
-      console.error('Simulation error:', error);
+    }
+    if (simulationError) {
+      console.error('Simulation error:', simulationError);
       setIsRunning(false);
       toast({
         title: "Simulation failed",
-        description: error.message || "An error occurred during simulation",
+        description: simulationError.message || "An error occurred during simulation",
         variant: "destructive",
       });
     }
-  });
+  }, [simulationData, simulationError, toast]);
 
   const runSimulation = async (
     ideaText: string,

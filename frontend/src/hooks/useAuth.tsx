@@ -16,43 +16,49 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   // Get current user
-  const { data: meData, loading: meLoading, refetch: refetchMe } = useQuery(GET_ME_QUERY, {
+  const { data: meData, loading: meLoading, error: meError, refetch: refetchMe } = useQuery(GET_ME_QUERY, {
     skip: !localStorage.getItem('access_token'),
-    onCompleted: (data) => {
-      if (data.me) {
-        setUser(data.me);
-      }
-      setLoading(false);
-    },
-    onError: () => {
+  });
+
+  // Handle me query results
+  useEffect(() => {
+    if (meData?.me) {
+      setUser(meData.me);
+    } else if (meError) {
       // Token is invalid, clear it
       localStorage.removeItem('access_token');
       setUser(null);
-      setLoading(false);
     }
-  });
+    setLoading(false);
+  }, [meData, meError]);
 
   // Signup mutation
-  const [signupMutation] = useMutation(SIGNUP_MUTATION, {
-    onCompleted: (data) => {
-      localStorage.setItem('access_token', data.signup.accessToken);
+  const [signupMutation, { data: signupData, error: signupError }] = useMutation(SIGNUP_MUTATION);
+
+  // Handle signup results
+  useEffect(() => {
+    if (signupData?.signup) {
+      localStorage.setItem('access_token', signupData.signup.accessToken);
       refetchMe();
-    },
-    onError: (error) => {
-      console.error('Signup error:', error);
     }
-  });
+    if (signupError) {
+      console.error('Signup error:', signupError);
+    }
+  }, [signupData, signupError, refetchMe]);
 
   // Login mutation
-  const [loginMutation] = useMutation(LOGIN_MUTATION, {
-    onCompleted: (data) => {
-      localStorage.setItem('access_token', data.login.accessToken);
+  const [loginMutation, { data: loginData, error: loginError }] = useMutation(LOGIN_MUTATION);
+
+  // Handle login results
+  useEffect(() => {
+    if (loginData?.login) {
+      localStorage.setItem('access_token', loginData.login.accessToken);
       refetchMe();
-    },
-    onError: (error) => {
-      console.error('Login error:', error);
     }
-  });
+    if (loginError) {
+      console.error('Login error:', loginError);
+    }
+  }, [loginData, loginError, refetchMe]);
 
   const signup = async (email: string, password: string, fullName?: string) => {
     try {

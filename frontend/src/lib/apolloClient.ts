@@ -42,7 +42,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 // Create Apollo Client
 export const apolloClient = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
-  cache: new ApolloClient({
+  cache: new InMemoryCache({
     typePolicies: {
       Query: {
         fields: {

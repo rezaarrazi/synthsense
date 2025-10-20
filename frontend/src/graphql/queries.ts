@@ -20,8 +20,8 @@ export const LOGIN_MUTATION = gql`
 `;
 
 export const UPDATE_PROFILE_MUTATION = gql`
-  mutation UpdateProfile($userUpdate: UserUpdateInput!) {
-    updateProfile(userUpdate: $userUpdate) {
+  mutation UpdateProfile($token: String!, $userUpdate: UserUpdateInput!) {
+    updateProfile(token: $token, userUpdate: $userUpdate) {
       id
       email
       fullName
@@ -33,8 +33,8 @@ export const UPDATE_PROFILE_MUTATION = gql`
 `;
 
 export const GET_ME_QUERY = gql`
-  query GetMe {
-    me {
+  query GetMe($token: String!) {
+    me(token: $token) {
       id
       email
       fullName
@@ -47,8 +47,8 @@ export const GET_ME_QUERY = gql`
 
 // Experiment queries and mutations
 export const GET_EXPERIMENTS_QUERY = gql`
-  query GetExperiments($status: String) {
-    experiments(status: $status) {
+  query GetExperiments($token: String!, $status: String) {
+    experiments(token: $token, status: $status) {
       id
       userId
       ideaText
@@ -65,8 +65,8 @@ export const GET_EXPERIMENTS_QUERY = gql`
 `;
 
 export const GET_EXPERIMENT_QUERY = gql`
-  query GetExperiment($id: ID!) {
-    experiment(id: $id) {
+  query GetExperiment($token: String!, $id: ID!) {
+    experiment(token: $token, id: $id) {
       id
       userId
       ideaText
@@ -105,8 +105,8 @@ export const GET_PERSONA_GROUPS_QUERY = gql`
 `;
 
 export const GET_PERSONAS_BY_GROUP_QUERY = gql`
-  query GetPersonasByGroup($personaGroup: String!) {
-    personasByGroup(personaGroup: $personaGroup) {
+  query GetPersonasByGroup($token: String!, $personaGroup: String!) {
+    personasByGroup(token: $token, personaGroup: $personaGroup) {
       id
       userId
       generationJobId

@@ -14,10 +14,10 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml requirements.txt ./
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies
-RUN uv pip install --system -r requirements.txt
+RUN uv sync --frozen
 
 # Production stage
 FROM python:3.11-slim
@@ -36,9 +36,11 @@ WORKDIR /app
 # Set PYTHONPATH to include /app
 ENV PYTHONPATH=/app
 
-# Copy installed packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy the entire uv environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy uv binary from builder
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 
 # Copy application code
 COPY . .
@@ -57,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

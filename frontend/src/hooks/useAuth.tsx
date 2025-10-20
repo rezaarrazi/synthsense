@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from '@apollo/client';
 import { SIGNUP_MUTATION, LOGIN_MUTATION, GET_ME_QUERY } from '../graphql/queries';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 interface User {
   id: string;
   email: string;
@@ -15,9 +17,13 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Get current user
+  // Get current user using GraphQL
   const { data: meData, loading: meLoading, error: meError, refetch: refetchMe } = useQuery(GET_ME_QUERY, {
+    variables: {
+      token: localStorage.getItem('access_token') || ""
+    },
     skip: !localStorage.getItem('access_token'),
+    errorPolicy: 'ignore', // Ignore errors to prevent Apollo from throwing
   });
 
   // Handle me query results

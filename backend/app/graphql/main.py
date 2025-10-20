@@ -1,3 +1,6 @@
+"""
+Main GraphQL schema combining queries and mutations.
+"""
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 from app.graphql.resolvers.user import UserQuery
@@ -20,16 +23,11 @@ class Mutation(AuthMutation, SimulationMutation, PersonaMutation):
     pass
 
 
-def get_context(request):
-    """Get context for GraphQL resolvers."""
-    return {
-        "user": getattr(request.state, "user", None),
-        "db": getattr(request.state, "db", None),
-    }
+# Create the GraphQL schema
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation
+)
 
-
-# Create GraphQL schema
-schema = strawberry.Schema(query=Query, mutation=Mutation)
-
-# Create GraphQL router
-graphql_app = GraphQLRouter(schema, context_getter=get_context)
+# Create the GraphQL router for FastAPI
+graphql_app = GraphQLRouter(schema)

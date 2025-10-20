@@ -157,11 +157,13 @@ async def seed_test_user():
     """Seed a test user for development."""
     from app.database import AsyncSessionLocal
     from app.models import User
-    import hashlib
+    import bcrypt
     
-    # Simple hash function for seeding (not for production)
-    def simple_hash(password: str) -> str:
-        return hashlib.sha256(password.encode()).hexdigest()
+    # Use bcrypt directly to avoid passlib issues
+    def bcrypt_hash(password: str) -> str:
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+        return hashed.decode('utf-8')
     
     async with AsyncSessionLocal() as session:
         try:
@@ -176,7 +178,7 @@ async def seed_test_user():
             # Create test user
             test_user = User(
                 email="test@example.com",
-                hashed_password=simple_hash("test"),
+                hashed_password=bcrypt_hash("test"),
                 full_name="Test User"
             )
             session.add(test_user)
@@ -184,7 +186,6 @@ async def seed_test_user():
             print("Test user seeded successfully")
             print("Email: test@example.com")
             print("Password: test")
-            print("NOTE: This uses a simple hash for seeding only. Use proper authentication for production.")
             
         except Exception as e:
             await session.rollback()

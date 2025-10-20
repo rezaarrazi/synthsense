@@ -15,6 +15,9 @@ export const useExperiments = () => {
   const { user } = useAuth();
 
   const { data, loading, error, refetch } = useQuery(GET_EXPERIMENTS_QUERY, {
+    variables: {
+      token: localStorage.getItem('access_token') || ""
+    },
     skip: !user,
     pollInterval: 5000, // Poll every 5 seconds for updates
   });

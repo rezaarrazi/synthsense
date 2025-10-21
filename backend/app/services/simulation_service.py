@@ -11,7 +11,7 @@ class SimulationService:
     
     def __init__(self):
         self.llm = LLMFactory.create_llm(temperature=0.7, max_tokens=150)
-        self.batch_size = 10  # Process personas in batches for better performance
+        self.batch_size = 50  # Process all personas in a single batch for maximum performance
     
     async def _call_llm_phase1(self, persona_profile: str, idea_text: str) -> str:
         """Phase 1: Generate textual response from persona."""

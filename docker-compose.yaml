@@ -22,19 +22,17 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: synthsense-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/synthsense
       JWT_SECRET: your-secret-key-change-in-production
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      MODEL: ${MODEL:-gpt-4o}
-      ENVIRONMENT: production
-      DEBUG: false
+      ENVIRONMENT: development
+      DEBUG: true
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,11 +52,14 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
     ports:
-      - "3000:80"
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3

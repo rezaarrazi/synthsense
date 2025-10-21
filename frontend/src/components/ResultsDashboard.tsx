@@ -101,11 +101,11 @@ export const ResultsDashboard = ({
 
         // Transform survey responses into personas
         const transformedPersonas: Persona[] = responsesData.experimentResponses.map((r: any) => {
-          const personaData = r.responseMetadata?.persona_data || {};
+          const personaData = r.persona?.personaData || {};
           const sentiment = r.likert >= 4 ? "adopt" : r.likert === 3 ? "mixed" : "not";
           
-          // Generate a persona name from the persona data or use a default
-          const personaName = personaData?.name || `Persona ${r.personaId.slice(-4)}`;
+          // Use the actual persona name from the database
+          const personaName = r.persona?.personaName || `Persona ${r.personaId.slice(-4)}`;
           
           return {
             id: r.personaId,

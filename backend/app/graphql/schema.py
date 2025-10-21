@@ -69,6 +69,19 @@ class SurveyResponseType:
 
 
 @strawberry.type
+class SurveyResponseWithPersonaType:
+    id: UUID
+    experiment_id: UUID
+    persona_id: UUID
+    user_id: UUID
+    response_text: str
+    likert: int
+    response_metadata: Optional[strawberry.scalars.JSON]
+    created_at: datetime
+    persona: Optional[PersonaType]
+
+
+@strawberry.type
 class PersonaConversationType:
     id: UUID
     experiment_id: UUID

@@ -3,7 +3,8 @@ from typing import Optional, List
 from sqlalchemy import select
 from app.models.experiment import Experiment
 from app.models.survey import SurveyResponse
-from app.graphql.schema import ExperimentType, SurveyResponseType
+from app.models.persona import Persona
+from app.graphql.schema import ExperimentType, SurveyResponseType, PersonaType, SurveyResponseWithPersonaType
 
 
 @strawberry.type
@@ -107,8 +108,8 @@ class ExperimentQuery:
         self,
         token: str,
         experiment_id: strawberry.ID
-    ) -> List[SurveyResponseType]:
-        """Get survey responses for an experiment."""
+    ) -> List[SurveyResponseWithPersonaType]:
+        """Get survey responses for an experiment with persona data."""
         try:
             # Decode token to get user ID
             from app.auth.jwt_handler import decode_token
@@ -122,16 +123,19 @@ class ExperimentQuery:
             
             from app.database import get_db_session_sync
             with get_db_session_sync() as db:
+                # Join SurveyResponse with Persona to get persona data
                 result = db.execute(
-                    select(SurveyResponse).where(
+                    select(SurveyResponse, Persona).join(
+                        Persona, SurveyResponse.persona_id == Persona.id
+                    ).where(
                         SurveyResponse.experiment_id == experiment_id,
                         SurveyResponse.user_id == user_id
                     ).order_by(SurveyResponse.created_at)
                 )
-                responses = result.scalars().all()
+                responses_with_personas = result.all()
                 
                 return [
-                    SurveyResponseType(
+                    SurveyResponseWithPersonaType(
                         id=resp.id,
                         experiment_id=resp.experiment_id,
                         persona_id=resp.persona_id,
@@ -139,9 +143,18 @@ class ExperimentQuery:
                         response_text=resp.response_text,
                         likert=resp.likert,
                         response_metadata=resp.response_metadata,
-                        created_at=resp.created_at
+                        created_at=resp.created_at,
+                        persona=PersonaType(
+                            id=persona.id,
+                            user_id=persona.user_id,
+                            generation_job_id=persona.generation_job_id,
+                            persona_name=persona.persona_name,
+                            persona_data=persona.persona_data,
+                            created_at=persona.created_at,
+                            updated_at=persona.updated_at
+                        ) if persona else None
                     )
-                    for resp in responses
+                    for resp, persona in responses_with_personas
                 ]
         except Exception:
             return []

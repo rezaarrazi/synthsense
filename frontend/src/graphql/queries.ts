@@ -93,6 +93,13 @@ export const GET_EXPERIMENT_RESPONSES_QUERY = gql`
       likert
       responseMetadata
       createdAt
+      persona {
+        id
+        personaName
+        personaData
+        createdAt
+        updatedAt
+      }
     }
   }
 `;

@@ -149,7 +149,7 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
                             {experiment.title}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {experiment.created_at ? formatDistanceToNow(new Date(experiment.created_at), { addSuffix: true }) : 'Unknown'}
+                            {experiment.createdAt ? formatDistanceToNow(new Date(experiment.createdAt), { addSuffix: true }) : 'Unknown'}
                           </div>
                         </div>
                       </Button>

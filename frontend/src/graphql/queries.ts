@@ -82,6 +82,21 @@ export const GET_EXPERIMENT_QUERY = gql`
   }
 `;
 
+export const GET_EXPERIMENT_RESPONSES_QUERY = gql`
+  query GetExperimentResponses($token: String!, $experimentId: ID!) {
+    experimentResponses(token: $token, experimentId: $experimentId) {
+      id
+      experimentId
+      personaId
+      userId
+      responseText
+      likert
+      responseMetadata
+      createdAt
+    }
+  }
+`;
+
 export const RUN_SIMULATION_MUTATION = gql`
   mutation RunSimulation($token: String!, $experimentData: ExperimentCreateInput!) {
     runSimulation(token: $token, experimentData: $experimentData) {

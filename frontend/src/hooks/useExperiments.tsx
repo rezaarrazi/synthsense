@@ -4,11 +4,11 @@ import { useAuth } from './useAuth';
 
 interface Experiment {
   id: string;
-  idea_text: string;
+  ideaText: string;
   title: string;
-  created_at: string;
+  createdAt: string;
   status: string;
-  results_summary?: any;
+  resultsSummary?: any;
 }
 
 export const useExperiments = () => {

@@ -122,7 +122,7 @@ export const SecurityTab = () => {
           <div className="space-y-2">
             <Label>Account Created</Label>
             <Input
-              value={user?.created_at ? new Date(user.created_at).toLocaleDateString() : ""}
+              value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : ""}
               disabled
               className="bg-muted"
             />

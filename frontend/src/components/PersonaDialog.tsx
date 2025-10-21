@@ -23,7 +23,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export const PersonaDialog = ({ 
@@ -95,7 +95,7 @@ export const PersonaDialog = ({
       id: Date.now().toString(),
       role: 'user',
       content: question,
-      created_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -108,7 +108,7 @@ export const PersonaDialog = ({
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: "This is a placeholder response. The chat functionality will be implemented via GraphQL.",
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);

@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation } from '@apollo/client';
 import { 
   GET_CONVERSATION_MESSAGES_MUTATION,
-  CHAT_WITH_PERSONA_MUTATION 
+  CHAT_WITH_PERSONA_MUTATION
 } from "@/graphql/queries";
 
 interface Persona {
@@ -56,25 +56,6 @@ export const PersonaDialog = ({
   const [getMessages] = useMutation(GET_CONVERSATION_MESSAGES_MUTATION);
   const [chatWithPersona] = useMutation(CHAT_WITH_PERSONA_MUTATION);
 
-  useEffect(() => {
-    // Initialize conversation with persona's initial response
-    if (!loading && !isGuest) {
-      initializeConversation();
-    } else if (isGuest) {
-      // Guest mode: just show the initial response
-      setMessages([{
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: persona.response,
-        created_at: new Date().toISOString()
-      }]);
-    }
-  }, [persona.id, experimentId, loading, user, isGuest]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
   const initializeConversation = useCallback(async () => {
     if (!user) {
       if (onAuthRequired) {
@@ -98,7 +79,7 @@ export const PersonaDialog = ({
 
       if (data?.getConversationMessages && data.getConversationMessages.length > 0) {
         // Load existing messages and prepend the persona's initial response
-        const conversationMessages = data.getConversationMessages.map((msg: any) => ({
+        const conversationMessages = data.getConversationMessages.map((msg: { id: string; role: string; content: string; createdAt: string }) => ({
           id: msg.id,
           role: msg.role,
           content: msg.content,
@@ -140,6 +121,25 @@ export const PersonaDialog = ({
       }]);
     }
   }, [user, experimentId, persona.id, persona.response, onAuthRequired, getMessages]);
+
+  useEffect(() => {
+    // Initialize conversation with persona's initial response
+    if (!loading && !isGuest) {
+      initializeConversation();
+    } else if (isGuest) {
+      // Guest mode: just show the initial response
+      setMessages([{
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: persona.response,
+        created_at: new Date().toISOString()
+      }]);
+    }
+  }, [persona.id, experimentId, loading, user, isGuest, initializeConversation, persona.response]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,25 +193,74 @@ export const PersonaDialog = ({
     setMessages(prev => [...prev, userMessageObj]);
 
     try {
-      const { data } = await chatWithPersona({
-        variables: {
-          token: localStorage.getItem('access_token') || "",
-          conversationId: conversationId,
-          personaId: persona.id,
-          message: userMessage
-        }
-      });
+      // Create a placeholder AI message for streaming
+      const aiMessageId = crypto.randomUUID();
+      const aiMessage: Message = {
+        id: aiMessageId,
+        role: 'assistant',
+        content: '',
+        created_at: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, aiMessage]);
 
-      if (data?.chatWithPersona) {
-        // Add AI response to UI
-        const aiMessage: Message = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: data.chatWithPersona.message,
-          created_at: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      }
+      // Use Server-Sent Events for streaming
+      const token = localStorage.getItem('access_token') || "";
+      const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const url = new URL('/chat-stream/' + conversationId, backendUrl);
+      url.searchParams.set('persona_id', persona.id);
+      url.searchParams.set('message', userMessage);
+      url.searchParams.set('token', token);
+
+      const eventSource = new EventSource(url.toString());
+      let fullContent = '';
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          
+          if (!data.is_final) {
+            fullContent += data.content;
+            // Update the AI message content in real-time
+            setMessages(prev => prev.map(msg => 
+              msg.id === aiMessageId 
+                ? { ...msg, content: fullContent }
+                : msg
+            ));
+          } else {
+            // Stream is complete
+            eventSource.close();
+            setIsLoading(false);
+          }
+        } catch (parseError) {
+          console.error('Error parsing SSE data:', parseError);
+          eventSource.close();
+          setIsLoading(false);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('SSE error:', error);
+        eventSource.close();
+        toast({
+          title: "Streaming failed",
+          description: "Connection lost during streaming",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+      };
+
+      // Clean up event source after 30 seconds timeout
+      setTimeout(() => {
+        if (eventSource.readyState === EventSource.OPEN) {
+          eventSource.close();
+          setIsLoading(false);
+        }
+      }, 30000);
+
     } catch (error) {
       console.error('Chat error:', error);
       toast({
@@ -220,9 +269,8 @@ export const PersonaDialog = ({
         variant: "destructive"
       });
       
-      // Remove the user message if chat failed
-      setMessages(prev => prev.slice(0, -1));
-    } finally {
+      // Remove both user and AI messages if chat failed
+      setMessages(prev => prev.slice(0, -2));
       setIsLoading(false);
     }
   };
@@ -301,13 +349,6 @@ export const PersonaDialog = ({
               </div>
             </div>
           ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-muted rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Thinking...</p>
-              </div>
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
 

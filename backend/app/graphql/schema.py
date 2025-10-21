@@ -155,3 +155,10 @@ class ChatResponseType:
     conversation_id: UUID
 
 
+@strawberry.type
+class ChatStreamChunkType:
+    content: str
+    conversation_id: str
+    is_final: bool = False
+
+

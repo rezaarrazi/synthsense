@@ -13,7 +13,7 @@ from app.services.ai_service import PersonaChatChain
 from app.config import settings
 from app.graphql.schema import (
     PersonaGenerationJobCreateInput, PersonaGenerationJobType,
-    PersonaMessageType, ChatResponseType
+    PersonaMessageType, ChatResponseType, ChatStreamChunkType
 )
 
 
@@ -214,11 +214,11 @@ class PersonaMutation:
             if not persona_result:
                 raise Exception("Persona not found")
             
-            # Get survey response for this persona
+            # Get survey response for this persona (get the most recent one)
             from app.models.survey import SurveyResponse
             survey_response = db.query(SurveyResponse).filter(
                 SurveyResponse.persona_id == persona_id
-            ).first()
+            ).order_by(SurveyResponse.created_at.desc()).first()
             
             if not survey_response:
                 raise Exception("Persona hasn't participated in any experiments yet")
@@ -247,6 +247,80 @@ class PersonaMutation:
                 message=ai_response,
                 conversation_id=conversation_id
             )
+
+        @strawberry.mutation
+        async def chat_with_persona_stream(
+            self,
+            info,
+            token: str,
+            conversation_id: str,
+            persona_id: str,
+            message: str
+        ):
+            """Stream chat with a persona using LangGraph's checkpointer."""
+            # Decode token to get user ID
+            from app.auth.jwt_handler import decode_token
+            payload = decode_token(token)
+            if not payload:
+                raise Exception("Authentication required")
+            
+            user_id = payload.get("sub")
+            if not user_id:
+                raise Exception("Authentication required")
+            
+            from app.database import get_db_session_sync
+            with get_db_session_sync() as db:
+                # Get user
+                user = db.query(User).filter(User.id == user_id).first()
+                if not user:
+                    raise Exception("User not found")
+                
+                # Get persona
+                persona_result = db.query(Persona).filter(Persona.id == persona_id).first()
+                
+                if not persona_result:
+                    raise Exception("Persona not found")
+                
+                # Get survey response for this persona (get the most recent one)
+                from app.models.survey import SurveyResponse
+                survey_response = db.query(SurveyResponse).filter(
+                    SurveyResponse.persona_id == persona_id
+                ).order_by(SurveyResponse.created_at.desc()).first()
+                
+                if not survey_response:
+                    raise Exception("Persona hasn't participated in any experiments yet")
+                
+                # Get experiment details
+                experiment = db.query(Experiment).filter(
+                    Experiment.id == survey_response.experiment_id
+                ).first()
+                
+                if not experiment:
+                    raise Exception("Experiment not found")
+                
+                # Generate streaming AI response using LangGraph
+                chat_chain = PersonaChatChain()
+                
+                async for chunk_content in chat_chain.chat_with_persona_stream(
+                    persona_profile=persona_result.persona_data,
+                    initial_response=survey_response.response_text,
+                    likert_score=survey_response.likert,
+                    idea_text=experiment.idea_text,
+                    user_message=message,
+                    conversation_id=conversation_id
+                ):
+                    yield ChatStreamChunkType(
+                        content=chunk_content,
+                        conversation_id=conversation_id,
+                        is_final=False
+                    )
+                
+                # Send final chunk
+                yield ChatStreamChunkType(
+                    content="",
+                    conversation_id=conversation_id,
+                    is_final=True
+                )
     
 
 async def _generate_personas_background(

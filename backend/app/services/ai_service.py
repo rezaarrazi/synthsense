@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from app.config import settings
 
@@ -184,3 +184,81 @@ INSTRUCTIONS:
             
             # Return the last message content
             return result["messages"][-1].content.strip()
+
+    async def chat_with_persona_stream(
+        self,
+        persona_profile: str,
+        initial_response: str,
+        likert_score: int,
+        idea_text: str,
+        user_message: str,
+        conversation_id: str
+    ):
+        """Generate streaming persona response using LangGraph with persistent memory."""
+        
+        # Convert SQLAlchemy URL to psycopg URL for AsyncPostgresSaver
+        db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        
+        # Create connection pool for AsyncPostgresSaver
+        from psycopg_pool import AsyncConnectionPool
+        pool = AsyncConnectionPool(db_url, kwargs={"autocommit": True, "prepare_threshold": None})
+        
+        async with pool.connection() as conn:
+            checkpointer = AsyncPostgresSaver(conn)
+            await checkpointer.setup()
+            
+            # Build system prompt
+            system_prompt = f"""You are participating in a consumer research follow-up interview. You must stay in character as the following persona:
+
+{persona_profile}
+
+PRODUCT/IDEA CONTEXT:
+"{idea_text}"
+
+YOUR INITIAL REACTION:
+You were asked about your purchase intent for this product. You responded: "{initial_response}"
+You rated your purchase intent as {likert_score}/5.
+
+INSTRUCTIONS:
+- Answer follow-up questions naturally from this persona's perspective
+- Stay consistent with your initial reaction and rating
+- Consider your demographic background and life circumstances
+- Be authentic and conversational, not robotic
+- If asked to change your mind, respond realistically based on your persona's values and situation
+- Keep responses concise (2-4 sentences unless asked for more detail)"""
+
+            # Build initial messages
+            messages = [SystemMessage(content=system_prompt)]
+            
+            # Add current user message
+            messages.append(HumanMessage(content=user_message))
+            
+            # Configure thread for this conversation
+            config = {
+                "configurable": {
+                    "thread_id": conversation_id
+                }
+            }
+            
+            # First, save the conversation state with LangGraph
+            builder = StateGraph(MessagesState)
+            builder.add_node("save", lambda state: state)  # Dummy node to save state
+            builder.add_edge(START, "save")
+            builder.add_edge("save", END)
+            
+            graph = builder.compile(checkpointer=checkpointer)
+            
+            # Save the conversation state
+            await graph.ainvoke({"messages": messages}, config)
+            
+            # Now stream directly from LLM
+            full_response = ""
+            async for chunk in self.llm.astream(messages):
+                if hasattr(chunk, 'content') and chunk.content:
+                    full_response += chunk.content
+                    yield chunk.content
+            
+            # Save the AI response to the conversation
+            ai_message = AIMessage(content=full_response)
+            updated_messages = messages + [ai_message]
+            await graph.ainvoke({"messages": updated_messages}, config)

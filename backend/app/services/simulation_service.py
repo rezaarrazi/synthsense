@@ -10,7 +10,9 @@ class SimulationService:
     """Simulation service for running consumer research experiments with parallel batch processing."""
     
     def __init__(self):
-        self.llm = LLMFactory.create_llm(temperature=0.7, max_tokens=150)
+        self.llm_phase1 = LLMFactory.create_llm(temperature=0.7, max_tokens=150)
+        self.llm_phase2 = LLMFactory.create_llm(temperature=0.1, max_tokens=10)
+        self.llm_recommendation = LLMFactory.create_llm(temperature=0.35, max_tokens=260)
         self.batch_size = 50  # Process all personas in a single batch for maximum performance
     
     async def _call_llm_phase1(self, persona_profile: str, idea_text: str) -> str:
@@ -29,7 +31,7 @@ Question: Based on this information, how likely are you to purchase this product
             HumanMessage(content=prompt)
         ]
         
-        response = await self.llm.ainvoke(messages)
+        response = await self.llm_phase1.ainvoke(messages)
         return response.content.strip()
     
     async def _call_llm_phase2(self, text_response: str) -> int:
@@ -55,7 +57,7 @@ Respond with ONLY a single number (1, 2, 3, 4, or 5). No explanation needed."""
             HumanMessage(content=prompt)
         ]
         
-        response = await self.llm.ainvoke(messages)
+        response = await self.llm_phase2.ainvoke(messages)
         
         # Robust parsing: search for the first digit between 1 and 5
         import re
@@ -143,32 +145,76 @@ Respond with ONLY a single number (1, 2, 3, 4, or 5). No explanation needed."""
             label = key.capitalize()
             breakdown_lines.append(f"- {label}: {value['percentage']}% ({value['count']} responses)")
         
-        context = f"""You are a **Senior Business Strategy Consultant**. Your task is to synthesize the provided market research data into a single, highly **actionable growth recommendation**.
+        # Build audience segmentation summaries
+        def get_property_summary_distribution(property_distributions: Dict[str, Dict[str, int]]) -> str:
+            if not property_distributions or len(property_distributions) == 0:
+                return ""
+            
+            target_properties = ["age", "income_level", "gender", "relationship_status"]
+            summary_props = []
+            
+            for prop_name, buckets in property_distributions.items():
+                lower_prop_name = prop_name.lower()
+                if any(target in lower_prop_name for target in target_properties):
+                    summary_props.append((prop_name, buckets))
+            
+            return "\n".join([
+                f"- {prop}: {', '.join([f'{bucket} ({count})' for bucket, count in sorted(buckets.items(), key=lambda x: x[1], reverse=True)])}"
+                for prop, buckets in summary_props
+            ])
+        
+        # Get distributions for each sentiment group
+        adopt_distributions = property_distributions.get("adopt", {})
+        mixed_distributions = property_distributions.get("mixed", {})
+        not_distributions = property_distributions.get("not", {})
+        
+        prop_summary_adopt_lines = get_property_summary_distribution(adopt_distributions)
+        prop_summary_mixed_lines = get_property_summary_distribution(mixed_distributions)
+        prop_summary_not_lines = get_property_summary_distribution(not_distributions)
+        
+        combined_prop_summaries = f"""--- Audience Distributions (Segmented by Sentiment) ---
+
+Adopted Audience Distribution:
+{prop_summary_adopt_lines or "No data available."}
+
+Mixed Sentiment Audience Distribution:
+{prop_summary_mixed_lines or "No data available."}
+
+Not Adopted Audience Distribution:
+{prop_summary_not_lines or "No data available."}"""
+
+        context = f"""You are a **Senior Business Strategy Consultant**. Your task is to synthesize the provided market research data (Product Idea, Sentiment, and Audience Demographics) into a single, highly **actionable growth recommendation**. Your response must be laser-focused, practical, and optimized for immediate business execution.
 
 Product Idea:
 \"\"\"
 {idea_text}
 \"\"\"
 
-Market Sentiment Breakdown:
+Market Sentiment Breakdown (Overall):
 {chr(10).join(breakdown_lines)}
 
-### Action Mandate (Strictly follow these requirements):
+Segmented Audience Analysis:
+Analyze the distributions below to identify **key demographic differences** between the 'Adopted Audience' (Early Adopters) and the 'Not Adopted Audience' (Skeptics). Use these differences (e.g., Age, Income gaps) to tailor your market strategy.
+
+Audience Distributions by Sentiment:
+{combined_prop_summaries}
+
+### Action Mandate (Strictly follow these requirements for the recommendation field):
 1. **Identify Lead Feature:** Name the best single feature or key selling point to anchor all marketing efforts.
-2. **Improvement Plan:** If the overall 'Adopt' percentage is below 50%, propose one concrete feature or positioning improvement.
-3. **Targets & Pricing:** Specify a measurable onboarding target and suggest a specific pricing approach to test.
+2. **Improvement Plan:** If the overall 'Adopt' percentage is below 50%, propose one concrete feature or positioning improvement to address the 'Not Adopted' demographic's resistance.
+3. **Targets & Pricing:** Specify a measurable onboarding target (e.g., 'Convert 30% of Mixed audience in 6 weeks') and suggest a specific pricing approach to test (e.g., 'Freemium tier, $5/month subscription').
 4. **Success Metrics:** List 2-3 specific, instrumentable success metrics.
 
 The final recommendation MUST be a continuous paragraph, strictly between 80 and 140 words."""
 
-        prompt = 'Output MUST be a single JSON object with EXACTLY two keys and types: {"short_title": string, "recommendation": string}. Do NOT include arrays, additional keys, comments, markdown code fences, or any text outside the JSON. short_title is a concise experiment title (max 8 words). recommendation should strictly follow the **Action Mandate** and be kept between 80-140 words.'
+        prompt = 'Output MUST be a single JSON object with EXACTLY two keys and types: {"short_title": string, "recommendation": string}. Do NOT include arrays, additional keys, comments, markdown code fences, or any text outside the JSON. short_title is a concise experiment title based on the product idea (max 8 words). recommendation should strictly follow the **Action Mandate** and be kept between 80-140 words.'
 
         messages = [
             SystemMessage(content=context),
             HumanMessage(content=prompt)
         ]
         
-        response = await self.llm.ainvoke(messages)
+        response = await self.llm_recommendation.ainvoke(messages)
         
         # Parse JSON response
         try:

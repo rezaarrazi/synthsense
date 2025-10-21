@@ -35,9 +35,10 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
     }
   }, [user]);
 
-  // Get persona groups using GraphQL
+  // Get persona groups using GraphQL with polling
   const { data: personaGroupsData, loading: groupsLoading } = useQuery(GET_PERSONA_GROUPS_QUERY, {
     skip: !user,
+    pollInterval: 10000, // Poll every 10 seconds for updates (less frequent than experiments)
   });
 
   useEffect(() => {
@@ -70,22 +71,34 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
 
   // Notify parent when component is ready (not loading and has options, or user is null)
   useEffect(() => {
-    console.log('PersonaGroupSelect - groupsLoading:', groupsLoading, 'options.length:', options.length, 'onReady:', !!onReady, 'user:', !!user);
     if ((!groupsLoading && options.length > 0) || !user) {
       if (onReady) {
-        console.log('PersonaGroupSelect - calling onReady()');
         onReady();
       }
     }
   }, [groupsLoading, options.length, onReady, user]);
+
+  // Also notify when we have cached data (for immediate updates)
+  useEffect(() => {
+    if (personaGroupsData?.personaGroups && personaGroupsData.personaGroups.length > 0 && user) {
+      if (onReady) {
+        onReady();
+      }
+    }
+  }, [personaGroupsData, onReady, user]);
 
   const filteredOptions = options.filter(opt => 
     opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
     opt.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Don't render anything if user is not authenticated
+  if (!user) {
+    return null;
+  }
+
   // Show loading state while data is being fetched
-  if (groupsLoading || options.length === 0) {
+  if (groupsLoading && options.length === 0) {
     return (
       <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2.5 text-foreground min-w-[200px] justify-between">
         <span className="text-sm font-medium text-muted-foreground">Loading...</span>

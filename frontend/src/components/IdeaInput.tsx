@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUp, Loader2 } from "lucide-react";
@@ -20,6 +20,14 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
     setAuthDialogOpen(true);
   });
 
+  // Reset state when user logs out
+  useEffect(() => {
+    if (!user) {
+      setPersonaGroupReady(false);
+      setSelectedGroup("General Audience");
+      setPersonaCount(0);
+    }
+  }, [user]);
 
   // Monitor user state changes and notify auth dialog when UI is ready
   useEffect(() => {
@@ -30,14 +38,33 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
     }
   }, [user, authLoading, personaGroupReady, onAuthComplete]);
 
-  // Reset personaGroupReady when user logs out
-  useEffect(() => {
-    if (!user) {
-      setPersonaGroupReady(false);
-      setSelectedGroup("General Audience"); // Reset to default
-      setPersonaCount(0); // Reset count
+  // Memoize the conditional rendering to ensure it updates when user changes
+  const renderContent = useMemo(() => {
+    if (authLoading) {
+      return (
+        <span className="text-muted-foreground text-xs">Loading...</span>
+      );
     }
-  }, [user]);
+
+    if (!user) {
+      return (
+        <span className="text-primary font-semibold text-xs bg-primary/10 px-2 py-1 rounded">
+          Free Trial - 1 simulation
+        </span>
+      );
+    }
+
+    return (
+      <>
+        <span>AUDIENCE</span>
+        <PersonaGroupSelect key={`persona-group-${user?.id || 'null'}`} value={selectedGroup} onChange={setSelectedGroup} onCountChange={setPersonaCount} onReady={() => setPersonaGroupReady(true)} />
+        <div className="hidden sm:flex items-center gap-2">
+          <span>SIZE</span>
+          <span className="text-foreground font-medium">{personaCount} personas</span>
+        </div>
+      </>
+    );
+  }, [authLoading, user, selectedGroup, personaCount]);
 
   const handleSubmit = async () => {
     if (idea.trim() && !isRunning) {
@@ -84,22 +111,7 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
           />
           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
-              {authLoading ? (
-                <span className="text-muted-foreground text-xs">Loading...</span>
-              ) : !user ? (
-                <span className="text-primary font-semibold text-xs bg-primary/10 px-2 py-1 rounded">
-                  Free Trial - 1 simulation
-                </span>
-              ) : (
-                <>
-                  <span>AUDIENCE</span>
-                  <PersonaGroupSelect key={user?.id} value={selectedGroup} onChange={setSelectedGroup} onCountChange={setPersonaCount} onReady={() => setPersonaGroupReady(true)} />
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span>SIZE</span>
-                    <span className="text-foreground font-medium">{personaCount} personas</span>
-                  </div>
-                </>
-              )}
+              {renderContent}
             </div>
             <Button
               onClick={handleSubmit}

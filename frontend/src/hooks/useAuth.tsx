@@ -140,10 +140,6 @@ export const useAuth = () => {
     await client.clearStore();
   }, [client, updateUserState]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('useAuth - user:', user, 'loading:', loading, 'meLoading:', meLoading, 'token:', !!localStorage.getItem('access_token'));
-  }, [user, loading, meLoading]);
 
   return { 
     user, 

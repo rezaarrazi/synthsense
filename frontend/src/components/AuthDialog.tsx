@@ -28,13 +28,10 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
 
   // Close dialog when user is authenticated and not loading
   useEffect(() => {
-    console.log('AuthDialog - authCompleted:', authCompleted, 'user:', !!user, 'authLoading:', authLoading, 'onAuthComplete:', !!onAuthComplete);
     if (authCompleted && user && !authLoading) {
       if (onAuthComplete) {
-        console.log('AuthDialog - calling onAuthComplete callback');
         // Wait for IdeaInput to confirm UI is ready
         onAuthComplete(() => {
-          console.log('AuthDialog - closing dialog');
           onOpenChange(false);
           setAuthCompleted(false);
           // Reset form
@@ -43,7 +40,6 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
           setFullName("");
         });
       } else {
-        console.log('AuthDialog - closing dialog immediately (no callback)');
         // Fallback: close immediately if no callback provided
         onOpenChange(false);
         setAuthCompleted(false);

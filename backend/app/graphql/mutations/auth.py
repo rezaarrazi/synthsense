@@ -3,13 +3,13 @@ from typing import Optional
 from app.models.user import User
 from app.auth.password_handler import hash_password, verify_password
 from app.auth.jwt_handler import create_access_token
-from app.graphql.schema import UserCreateInput, UserLoginInput, UserUpdateInput, TokenType, UserType
+from app.graphql.schema import UserCreateInput, UserLoginInput, UserUpdateInput, TokenType, UserType, LoginResponseType
 
 
 @strawberry.type
 class AuthMutation:
     @strawberry.mutation
-    def signup(self, user_data: UserCreateInput) -> TokenType:
+    def signup(self, user_data: UserCreateInput) -> LoginResponseType:
         """Create a new user account."""
         try:
             from app.database import get_db_session_sync
@@ -34,14 +34,25 @@ class AuthMutation:
                 # Create access token
                 access_token = create_access_token(data={"sub": str(user.id)})
                 
-                return TokenType(access_token=access_token, token_type="bearer")
+                return LoginResponseType(
+                    access_token=access_token,
+                    token_type="bearer",
+                    user=UserType(
+                        id=user.id,
+                        email=user.email,
+                        full_name=user.full_name,
+                        avatar_url=user.avatar_url,
+                        created_at=user.created_at,
+                        updated_at=user.updated_at
+                    )
+                )
                 
         except Exception as e:
             raise Exception(f"Signup failed: {str(e)}")
     
     @strawberry.mutation
-    def login(self, credentials: UserLoginInput) -> TokenType:
-        """Authenticate user and return access token."""
+    def login(self, credentials: UserLoginInput) -> LoginResponseType:
+        """Authenticate user and return access token with user data."""
         try:
             from app.database import get_db_session_sync
             with get_db_session_sync() as db:
@@ -54,7 +65,18 @@ class AuthMutation:
                 # Create access token
                 access_token = create_access_token(data={"sub": str(user.id)})
                 
-                return TokenType(access_token=access_token, token_type="bearer")
+                return LoginResponseType(
+                    access_token=access_token,
+                    token_type="bearer",
+                    user=UserType(
+                        id=user.id,
+                        email=user.email,
+                        full_name=user.full_name,
+                        avatar_url=user.avatar_url,
+                        created_at=user.created_at,
+                        updated_at=user.updated_at
+                    )
+                )
                 
         except Exception as e:
             raise Exception(f"Login failed: {str(e)}")

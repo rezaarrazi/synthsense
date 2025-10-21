@@ -17,13 +17,23 @@ interface PersonaGroupSelectProps {
   value: string;
   onChange: (value: string) => void;
   onCountChange?: (count: number) => void;
+  onReady?: () => void;
 }
 
-export const PersonaGroupSelect = ({ value, onChange, onCountChange }: PersonaGroupSelectProps) => {
+export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: PersonaGroupSelectProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [options, setOptions] = useState<PersonaGroupOption[]>([]);
   const { user } = useAuth();
+
+  // Reset component state when user changes
+  useEffect(() => {
+    if (!user) {
+      setOptions([]);
+      setIsOpen(false);
+      setSearchQuery("");
+    }
+  }, [user]);
 
   // Get persona groups using GraphQL
   const { data: personaGroupsData, loading: groupsLoading } = useQuery(GET_PERSONA_GROUPS_QUERY, {
@@ -57,6 +67,17 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange }: PersonaGr
       onCountChange(selectedOption.count);
     }
   }, [selectedOption, onCountChange]);
+
+  // Notify parent when component is ready (not loading and has options, or user is null)
+  useEffect(() => {
+    console.log('PersonaGroupSelect - groupsLoading:', groupsLoading, 'options.length:', options.length, 'onReady:', !!onReady, 'user:', !!user);
+    if ((!groupsLoading && options.length > 0) || !user) {
+      if (onReady) {
+        console.log('PersonaGroupSelect - calling onReady()');
+        onReady();
+      }
+    }
+  }, [groupsLoading, options.length, onReady, user]);
 
   const filteredOptions = options.filter(opt => 
     opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||

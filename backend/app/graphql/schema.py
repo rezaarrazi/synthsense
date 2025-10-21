@@ -122,6 +122,13 @@ class TokenType:
 
 
 @strawberry.type
+class LoginResponseType:
+    access_token: str
+    token_type: str = "bearer"
+    user: UserType
+
+
+@strawberry.type
 class SimulationResultType:
     experiment_id: UUID
     status: str

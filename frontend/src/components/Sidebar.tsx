@@ -52,9 +52,10 @@ interface SidebarProps {
 
 export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
   const { open, isMobile, setOpenMobile } = useSidebar();
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { experiments, isLoading, refetch } = useExperiments();
   const { deleteExperiment, updateExperimentTitle } = useExperimentMutations();
+  
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -201,7 +202,11 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
           open ? "opacity-100 max-h-screen" : "opacity-0 max-h-0 overflow-hidden"
         }`}
       >
-        {user ? (
+        {authLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-sm text-muted-foreground">Loading...</div>
+          </div>
+        ) : user ? (
           <div className="space-y-3">
             {/* Account Menu */}
             <div className="space-y-2">

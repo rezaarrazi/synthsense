@@ -6,6 +6,14 @@ export const SIGNUP_MUTATION = gql`
     signup(userData: $userData) {
       accessToken
       tokenType
+      user {
+        id
+        email
+        fullName
+        avatarUrl
+        createdAt
+        updatedAt
+      }
     }
   }
 `;
@@ -15,6 +23,14 @@ export const LOGIN_MUTATION = gql`
     login(credentials: $credentials) {
       accessToken
       tokenType
+      user {
+        id
+        email
+        fullName
+        avatarUrl
+        createdAt
+        updatedAt
+      }
     }
   }
 `;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowUp, Loader2 } from "lucide-react";
@@ -13,10 +13,31 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
   const [selectedGroup, setSelectedGroup] = useState("General Audience");
   const [personaCount, setPersonaCount] = useState(0);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const { user } = useAuth();
+  const [onAuthComplete, setOnAuthComplete] = useState<(() => void) | null>(null);
+  const [personaGroupReady, setPersonaGroupReady] = useState(false);
+  const { user, loading: authLoading } = useAuth();
   const { runSimulation, runGuestSimulation, isRunning } = useSimulation(() => {
     setAuthDialogOpen(true);
   });
+
+
+  // Monitor user state changes and notify auth dialog when UI is ready
+  useEffect(() => {
+    if (onAuthComplete && user && !authLoading && personaGroupReady) {
+      // Both user auth and PersonaGroupSelect are ready
+      onAuthComplete();
+      setOnAuthComplete(null);
+    }
+  }, [user, authLoading, personaGroupReady, onAuthComplete]);
+
+  // Reset personaGroupReady when user logs out
+  useEffect(() => {
+    if (!user) {
+      setPersonaGroupReady(false);
+      setSelectedGroup("General Audience"); // Reset to default
+      setPersonaCount(0); // Reset count
+    }
+  }, [user]);
 
   const handleSubmit = async () => {
     if (idea.trim() && !isRunning) {
@@ -24,7 +45,7 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
         // Authenticated user - normal flow
         const result = await runSimulation(idea, selectedGroup);
         if (result) {
-          onSubmit(result.experiment_id);
+          onSubmit(result.experimentId);
         }
       } else {
         // Guest user - check if they've used their trial
@@ -63,15 +84,16 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
           />
           <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
-              {!user && (
+              {authLoading ? (
+                <span className="text-muted-foreground text-xs">Loading...</span>
+              ) : !user ? (
                 <span className="text-primary font-semibold text-xs bg-primary/10 px-2 py-1 rounded">
                   Free Trial - 1 simulation
                 </span>
-              )}
-              {user && (
+              ) : (
                 <>
                   <span>AUDIENCE</span>
-                  <PersonaGroupSelect value={selectedGroup} onChange={setSelectedGroup} onCountChange={setPersonaCount} />
+                  <PersonaGroupSelect key={user?.id} value={selectedGroup} onChange={setSelectedGroup} onCountChange={setPersonaCount} onReady={() => setPersonaGroupReady(true)} />
                   <div className="hidden sm:flex items-center gap-2">
                     <span>SIZE</span>
                     <span className="text-foreground font-medium">{personaCount} personas</span>
@@ -111,6 +133,7 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
         message={hasUsedGuestMode() 
           ? "You've used your free trial. Sign up to continue testing ideas!" 
           : "Sign up to test your idea with AI personas and get instant feedback"}
+        onAuthComplete={setOnAuthComplete}
       />
     </div>
   );

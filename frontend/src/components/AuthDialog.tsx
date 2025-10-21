@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,17 +12,48 @@ interface AuthDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultMode?: "signup" | "signin";
   message?: string;
+  onAuthComplete?: (callback: () => void) => void;
 }
 
-export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message }: AuthDialogProps) => {
+export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message, onAuthComplete }: AuthDialogProps) => {
   const [mode, setMode] = useState<"signup" | "signin">(defaultMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authCompleted, setAuthCompleted] = useState(false);
   const { toast } = useToast();
-  const { signup, login } = useAuth();
+  const { user, loading: authLoading, signup, login } = useAuth();
+
+  // Close dialog when user is authenticated and not loading
+  useEffect(() => {
+    console.log('AuthDialog - authCompleted:', authCompleted, 'user:', !!user, 'authLoading:', authLoading, 'onAuthComplete:', !!onAuthComplete);
+    if (authCompleted && user && !authLoading) {
+      if (onAuthComplete) {
+        console.log('AuthDialog - calling onAuthComplete callback');
+        // Wait for IdeaInput to confirm UI is ready
+        onAuthComplete(() => {
+          console.log('AuthDialog - closing dialog');
+          onOpenChange(false);
+          setAuthCompleted(false);
+          // Reset form
+          setEmail("");
+          setPassword("");
+          setFullName("");
+        });
+      } else {
+        console.log('AuthDialog - closing dialog immediately (no callback)');
+        // Fallback: close immediately if no callback provided
+        onOpenChange(false);
+        setAuthCompleted(false);
+        // Reset form
+        setEmail("");
+        setPassword("");
+        setFullName("");
+      }
+    }
+  }, [authCompleted, user, authLoading, onOpenChange, onAuthComplete]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +72,7 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
           title: "Account created!",
           description: "You can now start using SynthSense.",
         });
-        onOpenChange(false);
+        setAuthCompleted(true);
       } else {
         await login(email, password);
         
@@ -54,12 +85,13 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
           title: "Welcome back!",
           description: "You've successfully signed in.",
         });
-        onOpenChange(false);
+        setAuthCompleted(true);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "An error occurred during authentication";
       toast({
         title: "Error",
-        description: error.message || "An error occurred during authentication",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -145,9 +177,9 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-primary/90"
-              disabled={isLoading}
+              disabled={isLoading || authCompleted}
             >
-              {isLoading ? "Loading..." : "Continue"} →
+              {authCompleted ? "Completing..." : isLoading ? "Loading..." : "Continue"} →
             </Button>
 
             <div className="text-center text-sm">

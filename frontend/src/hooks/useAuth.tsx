@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery } from '@apollo/client';
+import { useEffect, useState, useCallback } from "react";
+import { useMutation, useQuery, useApolloClient } from '@apollo/client';
 import { SIGNUP_MUTATION, LOGIN_MUTATION, GET_ME_QUERY } from '../graphql/queries';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -16,6 +16,14 @@ interface User {
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const client = useApolloClient();
+
+  // Helper function to update user state
+  const updateUserState = useCallback((userData: User | null) => {
+    console.log('Updating user state:', userData);
+    setUser(userData);
+    setLoading(false);
+  }, []);
 
   // Get current user using GraphQL
   const { data: meData, loading: meLoading, error: meError, refetch: refetchMe } = useQuery(GET_ME_QUERY, {
@@ -30,13 +38,23 @@ export const useAuth = () => {
   useEffect(() => {
     if (meData?.me) {
       setUser(meData.me);
+      setLoading(false);
     } else if (meError) {
       // Token is invalid, clear it
       localStorage.removeItem('access_token');
       setUser(null);
+      setLoading(false);
     }
-    setLoading(false);
+    // Don't set loading to false if we're still loading the me query
   }, [meData, meError]);
+
+  // Handle case where there's no token (query is skipped)
+  useEffect(() => {
+    if (!localStorage.getItem('access_token') && !meLoading) {
+      setUser(null);
+      setLoading(false);
+    }
+  }, [meLoading]);
 
   // Signup mutation
   const [signupMutation, { data: signupData, error: signupError }] = useMutation(SIGNUP_MUTATION);
@@ -45,12 +63,25 @@ export const useAuth = () => {
   useEffect(() => {
     if (signupData?.signup) {
       localStorage.setItem('access_token', signupData.signup.accessToken);
+      // Immediately update UI with user data from signup response
+      const userData = {
+        id: signupData.signup.user.id,
+        email: signupData.signup.user.email,
+        full_name: signupData.signup.user.fullName,
+        avatar_url: signupData.signup.user.avatarUrl,
+        createdAt: signupData.signup.user.createdAt,
+        updatedAt: signupData.signup.user.updatedAt
+      };
+      console.log('Setting user data from signup:', userData);
+      updateUserState(userData);
+      
+      // Refetch the me query to ensure cache consistency
       refetchMe();
     }
     if (signupError) {
       console.error('Signup error:', signupError);
     }
-  }, [signupData, signupError, refetchMe]);
+  }, [signupData, signupError, refetchMe, updateUserState]);
 
   // Login mutation
   const [loginMutation, { data: loginData, error: loginError }] = useMutation(LOGIN_MUTATION);
@@ -59,54 +90,64 @@ export const useAuth = () => {
   useEffect(() => {
     if (loginData?.login) {
       localStorage.setItem('access_token', loginData.login.accessToken);
+      // Immediately update UI with user data from login response
+      const userData = {
+        id: loginData.login.user.id,
+        email: loginData.login.user.email,
+        full_name: loginData.login.user.fullName,
+        avatar_url: loginData.login.user.avatarUrl,
+        createdAt: loginData.login.user.createdAt,
+        updatedAt: loginData.login.user.updatedAt
+      };
+      console.log('Setting user data from login:', userData);
+      updateUserState(userData);
+      
+      // Refetch the me query to ensure cache consistency
       refetchMe();
     }
     if (loginError) {
       console.error('Login error:', loginError);
     }
-  }, [loginData, loginError, refetchMe]);
+  }, [loginData, loginError, refetchMe, updateUserState]);
 
   const signup = async (email: string, password: string, fullName?: string) => {
-    try {
-      await signupMutation({
-        variables: {
-          userData: {
-            email,
-            password,
-            fullName
-          }
+    await signupMutation({
+      variables: {
+        userData: {
+          email,
+          password,
+          fullName
         }
-      });
-    } catch (error) {
-      throw error;
-    }
+      }
+    });
   };
 
   const login = async (email: string, password: string) => {
-    try {
-      await loginMutation({
-        variables: {
-          credentials: {
-            email,
-            password
-          }
+    await loginMutation({
+      variables: {
+        credentials: {
+          email,
+          password
         }
-      });
-    } catch (error) {
-      throw error;
-    }
+      }
+    });
   };
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     localStorage.removeItem('access_token');
-    setUser(null);
+    updateUserState(null);
     // Clear Apollo cache
-    window.location.reload();
-  };
+    await client.clearStore();
+  }, [client, updateUserState]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('useAuth - user:', user, 'loading:', loading, 'meLoading:', meLoading, 'token:', !!localStorage.getItem('access_token'));
+  }, [user, loading, meLoading]);
 
   return { 
     user, 
-    loading: loading || meLoading, 
+    loading: loading || (meLoading && !user && localStorage.getItem('access_token')), 
     signup, 
     login, 
     signOut 

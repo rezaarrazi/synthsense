@@ -43,6 +43,7 @@ import { AuthDialog } from "./AuthDialog";
 import { AccountSettingsDialog } from "./AccountSettingsDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useExperiments } from "@/hooks/useExperiments";
+import { useExperimentMutations } from "@/hooks/useExperimentMutations";
 import { formatDistanceToNow } from "date-fns";
 
 interface SidebarProps {
@@ -52,7 +53,8 @@ interface SidebarProps {
 export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
   const { open, isMobile, setOpenMobile } = useSidebar();
   const { user, signOut } = useAuth();
-  const { experiments, isLoading } = useExperiments();
+  const { experiments, isLoading, refetch } = useExperiments();
+  const { deleteExperiment, updateExperimentTitle } = useExperimentMutations();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -65,20 +67,26 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
   const handleDelete = async () => {
     if (!selectedExperiment) return;
 
-    // TODO: Implement delete experiment via GraphQL
-    toast.success("Experiment deleted");
-    setDeleteDialogOpen(false);
-    setSelectedExperiment(null);
+    const success = await deleteExperiment(selectedExperiment.id);
+    if (success) {
+      setDeleteDialogOpen(false);
+      setSelectedExperiment(null);
+      // Refetch experiments to update the list
+      refetch();
+    }
   };
 
   const handleRename = async () => {
     if (!selectedExperiment || !newName.trim()) return;
 
-    // TODO: Implement rename experiment via GraphQL
-    toast.success("Experiment renamed");
-    setRenameDialogOpen(false);
-    setSelectedExperiment(null);
-    setNewName("");
+    const success = await updateExperimentTitle(selectedExperiment.id, newName.trim());
+    if (success) {
+      setRenameDialogOpen(false);
+      setSelectedExperiment(null);
+      setNewName("");
+      // Refetch experiments to update the list
+      refetch();
+    }
   };
 
   return (

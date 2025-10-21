@@ -9,6 +9,7 @@ from app.graphql.resolvers.persona import PersonaQuery
 from app.graphql.mutations.auth import AuthMutation
 from app.graphql.mutations.simulation import SimulationMutation
 from app.graphql.mutations.persona import PersonaMutation
+from app.graphql.mutations.experiment import ExperimentMutation
 
 
 @strawberry.type
@@ -18,7 +19,7 @@ class Query(UserQuery, ExperimentQuery, PersonaQuery):
 
 
 @strawberry.type
-class Mutation(AuthMutation, SimulationMutation, PersonaMutation):
+class Mutation(AuthMutation, SimulationMutation, PersonaMutation, ExperimentMutation):
     """Root mutation type combining all mutation resolvers."""
     pass
 

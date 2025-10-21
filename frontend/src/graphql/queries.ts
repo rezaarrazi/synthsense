@@ -97,6 +97,23 @@ export const RUN_SIMULATION_MUTATION = gql`
   }
 `;
 
+// Experiment mutations
+export const DELETE_EXPERIMENT_MUTATION = gql`
+  mutation DeleteExperiment($token: String!, $experimentId: ID!) {
+    deleteExperiment(token: $token, experimentId: $experimentId)
+  }
+`;
+
+export const UPDATE_EXPERIMENT_TITLE_MUTATION = gql`
+  mutation UpdateExperimentTitle($token: String!, $experimentId: ID!, $title: String!) {
+    updateExperimentTitle(token: $token, experimentId: $experimentId, title: $title) {
+      id
+      title
+      updatedAt
+    }
+  }
+`;
+
 // Persona queries and mutations
 export const GET_PERSONA_GROUPS_QUERY = gql`
   query GetPersonaGroups {

@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => void }) => {
   const [idea, setIdea] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState("Default");
+  const [selectedGroup, setSelectedGroup] = useState("General Audience");
   const [personaCount, setPersonaCount] = useState(0);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const { user } = useAuth();

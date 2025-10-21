@@ -249,7 +249,7 @@ export const ResultsDashboard = ({ experimentId }: ResultsDashboardProps) => {
                       </p>
                     </div>
                     <Badge variant="outline">
-                      {new Date(response.created_at).toLocaleDateString()}
+                      {response.created_at ? new Date(response.created_at).toLocaleDateString() : 'N/A'}
                     </Badge>
                   </div>
                 </div>

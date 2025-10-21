@@ -83,8 +83,8 @@ export const GET_EXPERIMENT_QUERY = gql`
 `;
 
 export const RUN_SIMULATION_MUTATION = gql`
-  mutation RunSimulation($experimentData: ExperimentCreateInput!) {
-    runSimulation(experimentData: $experimentData) {
+  mutation RunSimulation($token: String!, $experimentData: ExperimentCreateInput!) {
+    runSimulation(token: $token, experimentData: $experimentData) {
       experimentId
       status
       totalProcessed
@@ -139,8 +139,8 @@ export const GENERATE_CUSTOM_COHORT_MUTATION = gql`
 
 // Chat mutations
 export const CHAT_WITH_PERSONA_MUTATION = gql`
-  mutation ChatWithPersona($conversationId: ID!, $personaId: ID!, $message: String!) {
-    chatWithPersona(conversationId: $conversationId, personaId: $personaId, message: $message) {
+  mutation ChatWithPersona($token: String!, $conversationId: ID!, $personaId: ID!, $message: String!) {
+    chatWithPersona(token: $token, conversationId: $conversationId, personaId: $personaId, message: $message) {
       message
       conversationId
     }

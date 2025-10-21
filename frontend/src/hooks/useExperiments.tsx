@@ -16,7 +16,8 @@ export const useExperiments = () => {
 
   const { data, loading, error, refetch } = useQuery(GET_EXPERIMENTS_QUERY, {
     variables: {
-      token: localStorage.getItem('access_token') || ""
+      token: localStorage.getItem('access_token') || "",
+      status: "completed" // Only fetch completed experiments
     },
     skip: !user,
     pollInterval: 5000, // Poll every 5 seconds for updates

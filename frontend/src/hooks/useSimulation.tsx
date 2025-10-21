@@ -86,6 +86,7 @@ export const useSimulation = (onAuthRequired?: () => void) => {
     try {
       await runSimulationMutation({
         variables: {
+          token: localStorage.getItem('access_token') || "",
           experimentData: {
             ideaText,
             personaGroup,

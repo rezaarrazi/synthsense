@@ -115,12 +115,12 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
               open ? "opacity-100 max-h-screen" : "opacity-0 max-h-0 overflow-hidden"
             }`}
           >
-            <SidebarGroupLabel className="px-4 text-xs text-muted-foreground">Recent Experiments</SidebarGroupLabel>
+            <SidebarGroupLabel className="px-4 text-xs text-muted-foreground">Completed Experiments</SidebarGroupLabel>
             <SidebarGroupContent className="px-2">
               {isLoading ? (
                 <div className="px-4 py-2 text-sm text-muted-foreground">Loading...</div>
               ) : experiments.length === 0 ? (
-                <div className="px-4 py-2 text-sm text-muted-foreground">No experiments yet</div>
+                <div className="px-4 py-2 text-sm text-muted-foreground">No completed experiments yet</div>
               ) : (
                 <div className="space-y-1">
                   {experiments.slice(0, 10).map((experiment) => (
@@ -141,7 +141,7 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
                             {experiment.title}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(experiment.created_at), { addSuffix: true })}
+                            {experiment.created_at ? formatDistanceToNow(new Date(experiment.created_at), { addSuffix: true }) : 'Unknown'}
                           </div>
                         </div>
                       </Button>

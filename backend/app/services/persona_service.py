@@ -1,11 +1,12 @@
 from typing import Dict, Any, List, TypedDict, Optional
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.services.ai_service import LLMFactory
 from app.config import settings
 import asyncio
 import json
+import asyncpg
 
 
 class PersonaGenerationState(TypedDict):
@@ -25,10 +26,8 @@ class PersonaService:
     
     def __init__(self):
         self.llm = LLMFactory.create_llm(temperature=0.8, max_tokens=4000)
-        self.checkpointer = PostgresSaver.from_conn_string(settings.DATABASE_URL)
-        self.graph = self._build_graph()
     
-    def _build_graph(self) -> StateGraph:
+    def _build_graph(self, checkpointer) -> StateGraph:
         """Build the LangGraph workflow for persona generation."""
         workflow = StateGraph(PersonaGenerationState)
         
@@ -41,7 +40,7 @@ class PersonaService:
         workflow.add_edge("generate_personas_batch", "complete_job")
         workflow.add_edge("complete_job", END)
         
-        return workflow.compile(checkpointer=self.checkpointer)
+        return workflow.compile(checkpointer=checkpointer)
     
     async def _generate_personas_batch(self, state: PersonaGenerationState) -> PersonaGenerationState:
         """Generate personas in batches with concurrency control."""
@@ -191,18 +190,42 @@ Example format:
         total_personas: int = 100
     ) -> Dict[str, Any]:
         """Generate a custom persona cohort."""
-        initial_state = PersonaGenerationState(
-            job_id=job_id,
-            audience_description=audience_description,
-            persona_group=persona_group,
-            personas_generated=0,
-            total_personas=total_personas,
-            personas=[],
-            status="generating",
-            error_message=None
-        )
+        # Convert SQLAlchemy URL to psycopg URL for AsyncPostgresSaver
+        db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
         
-        # Run the workflow
-        result = await self.graph.ainvoke(initial_state)
+        # Create connection pool for AsyncPostgresSaver (same as working example)
+        from psycopg_pool import AsyncConnectionPool
+        pool = AsyncConnectionPool(db_url, kwargs={"autocommit": True, "prepare_threshold": None, })
         
-        return result
+        try:
+            async with pool.connection() as conn:
+                checkpointer = AsyncPostgresSaver(conn)
+                await checkpointer.setup()
+                
+                # Build graph with checkpointer
+                graph = self._build_graph(checkpointer)
+                
+                # Configure thread for this persona generation job
+                config = {
+                    "configurable": {
+                        "thread_id": job_id
+                    }
+                }
+                
+                initial_state = PersonaGenerationState(
+                    job_id=job_id,
+                    audience_description=audience_description,
+                    persona_group=persona_group,
+                    personas_generated=0,
+                    total_personas=total_personas,
+                    personas=[],
+                    status="generating",
+                    error_message=None
+                )
+                
+                # Run the workflow
+                result = await graph.ainvoke(initial_state, config)
+                
+                return result
+        finally:
+            await pool.close()

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Check, ChevronDown, Search, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from '@apollo/client';
@@ -34,8 +34,8 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange }: PersonaGr
     if (personaGroupsData?.personaGroups) {
       const groupOptions: PersonaGroupOption[] = personaGroupsData.personaGroups.map((group: string) => ({
         value: group,
-        label: group === 'Default' ? 'General Audience' : group,
-        description: group === 'Default' ? 'Broad market testing' : 'Custom cohort',
+        label: group,
+        description: group === 'General Audience' ? 'Broad market testing' : 'Custom cohort',
         count: 50, // Default count, could be fetched from backend
       }));
 
@@ -43,18 +43,20 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange }: PersonaGr
     }
   }, [personaGroupsData]);
 
-  const selectedOption = options.find(opt => opt.value === value) || options[0] || {
-    value: 'Default',
-    label: 'General Audience',
-    description: 'Broad market testing',
-    count: 50
-  };
+  const selectedOption = useMemo(() => 
+    options.find(opt => opt.value === value) || options[0] || {
+      value: 'General Audience',
+      label: 'General Audience',
+      description: 'Broad market testing',
+      count: 50
+    }, [options, value]
+  );
 
   useEffect(() => {
     if (selectedOption && onCountChange && selectedOption.count !== undefined) {
       onCountChange(selectedOption.count);
     }
-  }, [selectedOption?.count, onCountChange]);
+  }, [selectedOption, onCountChange]);
 
   const filteredOptions = options.filter(opt => 
     opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||

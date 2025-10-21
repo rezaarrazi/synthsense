@@ -53,7 +53,10 @@ class PersonaQuery:
                 job = result.scalar_one_or_none()
                 
                 if not job:
+                    print(f"Job {id} not found for user {user_id}")
                     return None
+                
+                print(f"GraphQL resolver found job {id}: status={job.status}, personas_generated={job.personas_generated}")
                 
                 return PersonaGenerationJobType(
                     id=job.id,

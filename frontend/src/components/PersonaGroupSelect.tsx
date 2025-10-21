@@ -1,10 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
-import { Check, ChevronDown, Search, Plus } from "lucide-react";
+import { Check, ChevronDown, Search, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useQuery } from '@apollo/client';
-import { GET_PERSONA_GROUPS_QUERY } from '../graphql/queries';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_PERSONA_GROUPS_QUERY, DELETE_COHORT_MUTATION } from '../graphql/queries';
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "./ui/input";
+import { CreateCustomCohortDialog } from "./CreateCustomCohortDialog";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PersonaGroupOption {
   value: string;
@@ -24,7 +36,11 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [options, setOptions] = useState<PersonaGroupOption[]>([]);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [cohortToDelete, setCohortToDelete] = useState<string | null>(null);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Reset component state when user changes
   useEffect(() => {
@@ -39,6 +55,25 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
   const { data: personaGroupsData, loading: groupsLoading } = useQuery(GET_PERSONA_GROUPS_QUERY, {
     skip: !user,
     pollInterval: 10000, // Poll every 10 seconds for updates (less frequent than experiments)
+  });
+
+  const [deleteCohort, { loading: isDeleting }] = useMutation(DELETE_COHORT_MUTATION, {
+    refetchQueries: [GET_PERSONA_GROUPS_QUERY],
+    onCompleted: () => {
+      toast({
+        title: "Cohort deleted",
+        description: "The cohort has been successfully deleted.",
+      });
+      setDeleteDialogOpen(false);
+      setCohortToDelete(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete cohort",
+        variant: "destructive",
+      });
+    },
   });
 
   useEffect(() => {
@@ -92,6 +127,24 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
     opt.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleDeleteClick = (e: React.MouseEvent, cohortName: string) => {
+    e.stopPropagation();
+    setCohortToDelete(cohortName);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (cohortToDelete) {
+      deleteCohort({
+        variables: { personaGroup: cohortToDelete }
+      });
+    }
+  };
+
+  const isCustomCohort = (cohortName: string) => {
+    return cohortName !== 'General Audience';
+  };
+
   // Don't render anything if user is not authenticated
   if (!user) {
     return null;
@@ -143,26 +196,39 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
                     Presets
                   </div>
                   {filteredOptions.map((option) => (
-                    <button
+                    <div
                       key={option.value}
-                      onClick={() => {
-                        onChange(option.value);
-                        setIsOpen(false);
-                        setSearchQuery("");
-                      }}
                       className={cn(
-                        "w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors flex items-start gap-3",
+                        "w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors flex items-start gap-3 group relative",
                         value === option.value && "bg-accent/30"
                       )}
                     >
-                      <div className="flex-1">
-                        <div className="font-medium text-foreground">{option.label}</div>
-                        <div className="text-sm text-muted-foreground">{option.description}</div>
-                      </div>
-                      {value === option.value && (
-                        <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                      <button
+                        onClick={() => {
+                          onChange(option.value);
+                          setIsOpen(false);
+                          setSearchQuery("");
+                        }}
+                        className="flex-1 flex items-start gap-3"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium text-foreground">{option.label}</div>
+                          <div className="text-sm text-muted-foreground">{option.description}</div>
+                        </div>
+                        {value === option.value && (
+                          <Check className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
+                        )}
+                      </button>
+                      {isCustomCohort(option.value) && (
+                        <button
+                          onClick={(e) => handleDeleteClick(e, option.value)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-sm"
+                          title="Delete cohort"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </>
               ) : (
@@ -177,7 +243,7 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
                 onClick={() => {
                   setIsOpen(false);
                   setSearchQuery("");
-                  // TODO: Implement create custom cohort functionality
+                  setShowCreateDialog(true);
                 }}
                 className="w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors flex items-start gap-3"
               >
@@ -191,6 +257,36 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
           </div>
         </>
       )}
+      
+      <CreateCustomCohortDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={() => {
+          // Refresh the persona groups query
+          window.location.reload(); // Simple refresh for now
+        }}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Cohort</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{cohortToDelete}"? This will permanently delete all personas in this cohort and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

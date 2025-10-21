@@ -118,7 +118,19 @@ async def generate_custom_cohort(
     await db.commit()
     await db.refresh(job)
     
-    # TODO: Start background generation task
+    # Start background generation task
+    from app.services.persona_service import PersonaService
+    import asyncio
+    
+    persona_service = PersonaService()
+    
+    # Run generation in background
+    asyncio.create_task(
+        _generate_personas_background(
+            persona_service, str(job.id), cohort_data.audience_description,
+            final_persona_group
+        )
+    )
     
     return job
 
@@ -155,3 +167,51 @@ async def get_personas_by_group(
     personas = personas_result.scalars().all()
     
     return personas
+
+
+async def _generate_personas_background(
+    persona_service,
+    job_id: str,
+    audience_description: str,
+    persona_group: str
+):
+    """Background task to generate personas."""
+    try:
+        print(f"Starting persona generation for job {job_id}")
+        result = await persona_service.generate_custom_cohort(
+            job_id=job_id,
+            audience_description=audience_description,
+            persona_group=persona_group,
+            total_personas=100
+        )
+        
+        print(f"Persona generation completed for job {job_id}: {result}")
+        
+        # Update job status
+        from app.database import get_db_session_sync
+        with get_db_session_sync() as db:
+            job = db.query(PersonaGenerationJob).filter(PersonaGenerationJob.id == job_id).first()
+            
+            if job:
+                job.status = result["status"]
+                job.personas_generated = result["personas_generated"]
+                if result["status"] == "error":
+                    job.error_message = result["error_message"]
+                
+                db.commit()
+                print(f"Updated job {job_id} status to {result['status']}")
+            else:
+                print(f"Job {job_id} not found in database")
+                
+    except Exception as e:
+        print(f"Error in persona generation for job {job_id}: {e}")
+        # Update job with error
+        from app.database import get_db_session_sync
+        with get_db_session_sync() as db:
+            job = db.query(PersonaGenerationJob).filter(PersonaGenerationJob.id == job_id).first()
+            
+            if job:
+                job.status = "failed"
+                job.error_message = str(e)
+                db.commit()
+                print(f"Updated job {job_id} status to failed")

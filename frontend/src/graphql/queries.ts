@@ -192,6 +192,12 @@ export const GENERATE_CUSTOM_COHORT_MUTATION = gql`
   }
 `;
 
+export const DELETE_COHORT_MUTATION = gql`
+  mutation DeleteCohort($personaGroup: String!) {
+    deleteCohort(personaGroup: $personaGroup)
+  }
+`;
+
 
 export const GET_CONVERSATION_MESSAGES_MUTATION = gql`
   mutation GetConversationMessages($token: String!, $conversationId: String!) {

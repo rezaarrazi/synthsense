@@ -75,8 +75,8 @@ class PersonaMutation:
         import asyncio
         asyncio.create_task(
             _generate_personas_background(
-                persona_service, job.id, cohort_data.audience_description,
-                final_persona_group, db
+                persona_service, str(job.id), cohort_data.audience_description,
+                final_persona_group
             )
         )
         
@@ -94,6 +94,46 @@ class PersonaMutation:
             created_at=job.created_at,
             updated_at=job.updated_at
         )
+
+    @strawberry.mutation
+    async def delete_cohort(
+        self,
+        info,
+        persona_group: str
+    ) -> bool:
+        """Delete a custom persona cohort."""
+        user = info.context.get("user")
+        if not user:
+            raise Exception("Authentication required")
+        
+        db: AsyncSession = info.context.get("db")
+        
+        # Find the persona generation job for this group
+        job_result = await db.execute(
+            select(PersonaGenerationJob).where(
+                PersonaGenerationJob.persona_group == persona_group,
+                PersonaGenerationJob.user_id == user.id
+            )
+        )
+        job = job_result.scalar_one_or_none()
+        
+        if not job:
+            raise Exception(f"Cohort '{persona_group}' not found")
+        
+        # Delete all personas associated with this job
+        personas_result = await db.execute(
+            select(Persona).where(Persona.generation_job_id == job.id)
+        )
+        personas = personas_result.scalars().all()
+        
+        for persona in personas:
+            await db.delete(persona)
+        
+        # Delete the generation job
+        await db.delete(job)
+        await db.commit()
+        
+        return True
 
     @strawberry.mutation
     async def get_conversation_messages(
@@ -327,11 +367,11 @@ async def _generate_personas_background(
     persona_service: PersonaService,
     job_id: str,
     audience_description: str,
-    persona_group: str,
-    db: AsyncSession
+    persona_group: str
 ):
     """Background task to generate personas."""
     try:
+        print(f"Starting persona generation for job {job_id}")
         result = await persona_service.generate_custom_cohort(
             job_id=job_id,
             audience_description=audience_description,
@@ -339,34 +379,45 @@ async def _generate_personas_background(
             total_personas=100
         )
         
-        # Update job status
+        print(f"Persona generation completed for job {job_id}: {result}")
+        
+        # Update job status using a new database session
+        from app.database import AsyncSessionLocal
         from app.models.persona import PersonaGenerationJob
         from sqlalchemy import select
         
-        job_result = await db.execute(
-            select(PersonaGenerationJob).where(PersonaGenerationJob.id == job_id)
-        )
-        job = job_result.scalar_one_or_none()
-        
-        if job:
-            job.status = result["status"]
-            job.personas_generated = result["personas_generated"]
-            if result["status"] == "error":
-                job.error_message = result["error_message"]
+        async with AsyncSessionLocal() as db:
+            job_result = await db.execute(
+                select(PersonaGenerationJob).where(PersonaGenerationJob.id == job_id)
+            )
+            job = job_result.scalar_one_or_none()
             
-            await db.commit()
+            if job:
+                job.status = result["status"]
+                job.personas_generated = result["personas_generated"]
+                if result["status"] == "error":
+                    job.error_message = result["error_message"]
+                
+                await db.commit()
+                print(f"Updated job {job_id} status to {result['status']}")
+            else:
+                print(f"Job {job_id} not found in database")
             
     except Exception as e:
-        # Update job with error
+        print(f"Error in persona generation for job {job_id}: {e}")
+        # Update job with error using a new database session
+        from app.database import AsyncSessionLocal
         from app.models.persona import PersonaGenerationJob
         from sqlalchemy import select
         
-        job_result = await db.execute(
-            select(PersonaGenerationJob).where(PersonaGenerationJob.id == job_id)
-        )
-        job = job_result.scalar_one_or_none()
-        
-        if job:
-            job.status = "failed"
-            job.error_message = str(e)
-            await db.commit()
+        async with AsyncSessionLocal() as db:
+            job_result = await db.execute(
+                select(PersonaGenerationJob).where(PersonaGenerationJob.id == job_id)
+            )
+            job = job_result.scalar_one_or_none()
+            
+            if job:
+                job.status = "failed"
+                job.error_message = str(e)
+                await db.commit()
+                print(f"Updated job {job_id} status to failed")

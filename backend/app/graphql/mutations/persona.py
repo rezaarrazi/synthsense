@@ -2,15 +2,18 @@ import strawberry
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from uuid import uuid4
+from uuid import uuid4, UUID
 from datetime import datetime
 from app.models.persona import PersonaGenerationJob
 from app.models.experiment import Experiment
 from app.models.persona import Persona
+from app.models.user import User
 from app.services.persona_service import PersonaService
+from app.services.ai_service import PersonaChatChain
 from app.config import settings
 from app.graphql.schema import (
-    PersonaGenerationJobCreateInput, PersonaGenerationJobType
+    PersonaGenerationJobCreateInput, PersonaGenerationJobType,
+    PersonaMessageType, ChatResponseType
 )
 
 
@@ -91,6 +94,159 @@ class PersonaMutation:
             created_at=job.created_at,
             updated_at=job.updated_at
         )
+
+    @strawberry.mutation
+    async def get_conversation_messages(
+        self,
+        info,
+        token: str,
+        conversation_id: str
+    ) -> List[PersonaMessageType]:
+        """Get messages for a conversation from LangGraph's checkpointer."""
+        # Decode token to get user ID
+        from app.auth.jwt_handler import decode_token
+        payload = decode_token(token)
+        if not payload:
+            raise Exception("Authentication required")
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise Exception("Authentication required")
+        
+        from app.database import get_db_session_sync
+        with get_db_session_sync() as db:
+            # Get user
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise Exception("User not found")
+            
+            # Get messages from LangGraph's checkpointer
+            from psycopg_pool import AsyncConnectionPool
+            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+            from langgraph.graph import StateGraph, MessagesState, START, END
+            
+            # Convert SQLAlchemy URL to psycopg URL for AsyncPostgresSaver
+            db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+            
+            # Create connection pool for AsyncPostgresSaver
+            pool = AsyncConnectionPool(db_url, kwargs={"autocommit": True, "prepare_threshold": None})
+            
+            async with pool.connection() as conn:
+                checkpointer = AsyncPostgresSaver(conn)
+                await checkpointer.setup()
+                
+                # Build a simple graph to access the checkpointer
+                builder = StateGraph(MessagesState)
+                builder.add_node("dummy", lambda state: state)  # Dummy node
+                builder.add_edge(START, "dummy")
+                builder.add_edge("dummy", END)
+                graph = builder.compile(checkpointer=checkpointer)
+                
+                # Configure thread for this conversation
+                config = {
+                    "configurable": {
+                        "thread_id": conversation_id
+                    }
+                }
+                
+                # Get the current state from the checkpointer
+                try:
+                    state = await graph.aget_state(config)
+                    if state and state.values and "messages" in state.values:
+                        messages = state.values["messages"]
+                        
+                        # Convert LangGraph messages to our format
+                        result_messages = []
+                        for i, msg in enumerate(messages):
+                            # Skip system messages
+                            if hasattr(msg, 'type') and msg.type == 'system':
+                                continue
+                                
+                            # Determine role based on message type
+                            role = "user" if hasattr(msg, 'type') and msg.type == 'human' else "assistant"
+                            
+                            result_messages.append(PersonaMessageType(
+                                id=f"{conversation_id}-{i}",  # Generate a simple ID
+                                conversation_id=conversation_id,
+                                role=role,
+                                content=msg.content,
+                                created_at=datetime.now()  # LangGraph doesn't store timestamps, use current time
+                            ))
+                        
+                        return result_messages
+                    else:
+                        return []
+                        
+                except Exception as e:
+                    # If no state exists yet, return empty list
+                    return []
+
+    @strawberry.mutation
+    async def chat_with_persona(
+        self,
+        info,
+        token: str,
+        conversation_id: str,
+        persona_id: str,
+        message: str
+    ) -> ChatResponseType:
+        """Chat with a persona using LangGraph's checkpointer."""
+        # Decode token to get user ID
+        from app.auth.jwt_handler import decode_token
+        payload = decode_token(token)
+        if not payload:
+            raise Exception("Authentication required")
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise Exception("Authentication required")
+        
+        from app.database import get_db_session_sync
+        with get_db_session_sync() as db:
+            # Get user
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise Exception("User not found")
+            
+            # Get persona
+            persona_result = db.query(Persona).filter(Persona.id == persona_id).first()
+            
+            if not persona_result:
+                raise Exception("Persona not found")
+            
+            # Get survey response for this persona
+            from app.models.survey import SurveyResponse
+            survey_response = db.query(SurveyResponse).filter(
+                SurveyResponse.persona_id == persona_id
+            ).first()
+            
+            if not survey_response:
+                raise Exception("Persona hasn't participated in any experiments yet")
+            
+            # Get experiment details
+            experiment = db.query(Experiment).filter(
+                Experiment.id == survey_response.experiment_id
+            ).first()
+            
+            if not experiment:
+                raise Exception("Experiment not found")
+            
+            # Generate AI response using LangGraph (which handles conversation persistence)
+            chat_chain = PersonaChatChain()
+            
+            ai_response = await chat_chain.chat_with_persona(
+                persona_profile=persona_result.persona_data,
+                initial_response=survey_response.response_text,
+                likert_score=survey_response.likert,
+                idea_text=experiment.idea_text,
+                user_message=message,
+                conversation_id=conversation_id
+            )
+            
+            return ChatResponseType(
+                message=ai_response,
+                conversation_id=conversation_id
+            )
     
 
 async def _generate_personas_background(

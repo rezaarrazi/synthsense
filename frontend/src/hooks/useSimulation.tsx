@@ -47,16 +47,8 @@ export const useSimulation = (onAuthRequired?: () => void) => {
   // Run simulation mutation
   const [runSimulationMutation, { data: simulationData, error: simulationError }] = useMutation(RUN_SIMULATION_MUTATION);
 
-  // Handle simulation results
+  // Handle simulation errors
   useEffect(() => {
-    if (simulationData?.runSimulation) {
-      setResult(simulationData.runSimulation);
-      setIsRunning(false);
-      toast({
-        title: "Simulation complete!",
-        description: `Processed ${simulationData.runSimulation.totalProcessed} personas successfully`,
-      });
-    }
     if (simulationError) {
       console.error('Simulation error:', simulationError);
       setIsRunning(false);
@@ -66,7 +58,7 @@ export const useSimulation = (onAuthRequired?: () => void) => {
         variant: "destructive",
       });
     }
-  }, [simulationData, simulationError, toast]);
+  }, [simulationError, toast]);
 
   const runSimulation = async (
     ideaText: string,
@@ -84,7 +76,7 @@ export const useSimulation = (onAuthRequired?: () => void) => {
     setResult(null);
 
     try {
-      await runSimulationMutation({
+      const { data } = await runSimulationMutation({
         variables: {
           token: localStorage.getItem('access_token') || "",
           experimentData: {
@@ -94,12 +86,23 @@ export const useSimulation = (onAuthRequired?: () => void) => {
           }
         }
       });
+      
+      // Set the result and stop running
+      if (data?.runSimulation) {
+        setResult(data.runSimulation);
+        setIsRunning(false);
+        toast({
+          title: "Simulation complete!",
+          description: `Processed ${data.runSimulation.totalProcessed} personas successfully`,
+        });
+      }
+      
+      // Return the actual result from the mutation
+      return data?.runSimulation || null;
     } catch (error) {
       setIsRunning(false);
       return null;
     }
-
-    return result;
   };
 
   const runGuestSimulation = async (ideaText: string): Promise<SimulationResult | null> => {

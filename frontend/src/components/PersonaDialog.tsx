@@ -5,8 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation } from '@apollo/client';
 import { 
-  CREATE_PERSONA_CONVERSATION_MUTATION, 
-  GET_CONVERSATION_MESSAGES_MUTATION, 
+  GET_CONVERSATION_MESSAGES_MUTATION,
   CHAT_WITH_PERSONA_MUTATION 
 } from "@/graphql/queries";
 
@@ -49,170 +48,180 @@ export const PersonaDialog = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
   
   // GraphQL mutations
-  const [createConversation] = useMutation(CREATE_PERSONA_CONVERSATION_MUTATION);
   const [getMessages] = useMutation(GET_CONVERSATION_MESSAGES_MUTATION);
   const [chatWithPersona] = useMutation(CHAT_WITH_PERSONA_MUTATION);
 
   useEffect(() => {
-    // Only load conversation when not loading auth state
-    if (!loading) {
-      loadOrCreateConversation();
-    }
-  }, [persona.id, experimentId, loading, user]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const loadOrCreateConversation = useCallback(async () => {
-    setIsFetching(true);
-    
-    if (isGuest) {
-      // Guest mode: just show the initial response, no database calls
+    // Initialize conversation with persona's initial response
+    if (!loading && !isGuest) {
+      initializeConversation();
+    } else if (isGuest) {
+      // Guest mode: just show the initial response
       setMessages([{
         id: crypto.randomUUID(),
         role: 'assistant',
         content: persona.response,
         created_at: new Date().toISOString()
       }]);
-      setIsFetching(false);
+    }
+  }, [persona.id, experimentId, loading, user, isGuest]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const initializeConversation = useCallback(async () => {
+    if (!user) {
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
       return;
     }
-    
-    try {
-      console.log('PersonaDialog - User state:', { user, loading });
-      
-      if (!user) {
-        console.log('PersonaDialog - No user found, showing auth required');
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to continue",
-          variant: "destructive"
-        });
-        return;
-      }
 
-      // Create or get existing conversation
-      const { data: conversationData } = await createConversation({
+    // Generate a unique conversation ID for this persona-experiment combination
+    const newConversationId = `${experimentId}-${persona.id}`;
+    setConversationId(newConversationId);
+
+    try {
+      // Try to load existing conversation messages
+      const { data } = await getMessages({
         variables: {
           token: localStorage.getItem('access_token') || "",
-          conversationData: {
-            experimentId: experimentId,
-            personaId: persona.id
-          }
+          conversationId: newConversationId
         }
       });
 
-      if (conversationData?.createPersonaConversation) {
-        const conversation = conversationData.createPersonaConversation;
-        setConversationId(conversation.id);
-
-        // Get existing messages
-        const { data: messagesData } = await getMessages({
-          variables: {
-            token: localStorage.getItem('access_token') || "",
-            conversationId: conversation.id
-          }
-        });
-
-        if (messagesData?.getConversationMessages) {
-          const existingMessages = messagesData.getConversationMessages.map((msg: { id: string; role: string; content: string; createdAt: string }) => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-            created_at: msg.createdAt
-          }));
-          
-          if (existingMessages.length > 0) {
-            setMessages(existingMessages);
-          } else {
-            // No existing messages, show initial response
-            setMessages([{
-              id: crypto.randomUUID(),
-              role: 'assistant',
-              content: persona.response,
-              created_at: new Date().toISOString()
-            }]);
-          }
-        } else {
-          // Fallback to initial response
-          setMessages([{
+      if (data?.getConversationMessages && data.getConversationMessages.length > 0) {
+        // Load existing messages and prepend the persona's initial response
+        const conversationMessages = data.getConversationMessages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          created_at: msg.createdAt
+        }));
+        
+        // Prepend the persona's initial response if it's not already in the conversation
+        const hasInitialResponse = conversationMessages.some(msg => 
+          msg.role === 'assistant' && msg.content === persona.response
+        );
+        
+        if (!hasInitialResponse) {
+          conversationMessages.unshift({
             id: crypto.randomUUID(),
             role: 'assistant',
             content: persona.response,
             created_at: new Date().toISOString()
-          }]);
+          });
         }
+        
+        setMessages(conversationMessages);
       } else {
-        throw new Error('Failed to create conversation');
+        // Initialize with the persona's initial response
+        setMessages([{
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: persona.response,
+          created_at: new Date().toISOString()
+        }]);
       }
     } catch (error) {
-      console.error("Error loading conversation:", error);
+      console.error('Error loading conversation:', error);
+      // Fallback to initial response
+      setMessages([{
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: persona.response,
+        created_at: new Date().toISOString()
+      }]);
+    }
+  }, [user, experimentId, persona.id, persona.response, onAuthRequired, getMessages]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!question.trim()) return;
+    
+    if (isGuest) {
       toast({
-        title: "Failed to load conversation",
-        description: "Please try again",
+        title: "Authentication required",
+        description: "Please sign in to chat with personas",
         variant: "destructive"
       });
-    } finally {
-      setIsFetching(false);
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
+      return;
     }
-  }, [isGuest, user, loading, persona.id, persona.response, experimentId, createConversation, getMessages, toast]);
 
-  const handleSendMessage = async () => {
-    if (!question.trim() || !conversationId || isLoading) return;
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to continue",
+        variant: "destructive"
+      });
+      if (onAuthRequired) {
+        onAuthRequired();
+      }
+      return;
+    }
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: question.trim(),
-      created_at: new Date().toISOString()
-    };
+    if (!conversationId) {
+      toast({
+        title: "Error",
+        description: "Conversation not initialized",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    setMessages(prev => [...prev, userMessage]);
-    setQuestion('');
+    const userMessage = question.trim();
+    setQuestion("");
     setIsLoading(true);
 
+    // Add user message to UI immediately
+    const userMessageObj: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: userMessage,
+      created_at: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, userMessageObj]);
+
     try {
-      if (!user) throw new Error("Not authenticated");
-      
-      // Send message to backend using GraphQL
       const { data } = await chatWithPersona({
         variables: {
           token: localStorage.getItem('access_token') || "",
           conversationId: conversationId,
           personaId: persona.id,
-          message: userMessage.content
+          message: userMessage
         }
       });
 
       if (data?.chatWithPersona) {
-        const assistantMessage: Message = {
+        // Add AI response to UI
+        const aiMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: data.chatWithPersona.message,
           created_at: new Date().toISOString()
         };
-        setMessages(prev => [...prev, assistantMessage]);
-      } else {
-        throw new Error('No response from persona');
+        setMessages(prev => [...prev, aiMessage]);
       }
-    } catch (error: unknown) {
-      console.error('Error sending message:', error);
-      
-      // Remove the user message on error
-      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
-      
+    } catch (error) {
+      console.error('Chat error:', error);
       toast({
-        title: "Failed to send message",
-        description: error instanceof Error ? error.message : "Please try again",
+        title: "Chat failed",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive"
       });
+      
+      // Remove the user message if chat failed
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
@@ -220,143 +229,109 @@ export const PersonaDialog = ({
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+      <div className="bg-background border border-border rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
         <div className="p-6 border-b border-border">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-lg">
-                {persona.avatar}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <span className="text-lg font-semibold text-primary">PE</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-foreground">{persona.name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {persona.persona_data?.occupation || persona.title}
-                  {persona.income && persona.income !== 'N/A' ? ` • ${persona.income}` : ''}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">📍 {persona.persona_data?.city_country || persona.location}</p>
+                <h2 className="text-xl font-semibold">{persona.name}</h2>
+                <p className="text-sm text-muted-foreground">{persona.title}</p>
+                <p className="text-sm text-muted-foreground">📍 {persona.location}</p>
               </div>
             </div>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-              <X className="h-5 w-5" />
-            </button>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
+        </div>
 
+        {/* Persona Details */}
+        <div className="p-6 border-b border-border">
           <div className="flex flex-wrap gap-2 mb-3">
             {persona.persona_data?.sex && (
               <span className="px-2 py-1 bg-secondary text-xs rounded-md text-foreground">
-                {persona.persona_data.sex}
+                {String(persona.persona_data.sex)}
               </span>
             )}
             {persona.persona_data?.age && (
               <span className="px-2 py-1 bg-secondary text-xs rounded-md text-foreground">
-                {persona.persona_data.age} years old
+                {String(persona.persona_data.age)} years old
               </span>
             )}
             {persona.persona_data?.education && (
               <span className="px-2 py-1 bg-secondary text-xs rounded-md text-foreground">
-                {persona.persona_data.education}
+                {String(persona.persona_data.education)}
               </span>
             )}
             {persona.persona_data?.income_level && (
               <span className="px-2 py-1 bg-secondary text-xs rounded-md text-foreground">
-                {persona.persona_data.income_level} income
+                {String(persona.persona_data.income_level)} income
               </span>
             )}
             {persona.persona_data?.relationship_status && (
               <span className="px-2 py-1 bg-secondary text-xs rounded-md text-foreground">
-                {persona.persona_data.relationship_status}
+                {String(persona.persona_data.relationship_status)}
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">
-          {isFetching || loading ? (
-            <div className="flex justify-center items-center h-full">
-              <div className="text-muted-foreground">{loading ? 'Loading...' : 'Loading conversation...'}</div>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}
+              >
+                <p className="text-sm">{message.content}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  {new Date(message.created_at).toLocaleTimeString()}
+                </p>
+              </div>
             </div>
-          ) : (
-            <>
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`mb-4 flex ${
-                    msg.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary/50 text-foreground'
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
-                    <div className={`text-xs mt-2 ${msg.role === 'user' ? 'opacity-80' : 'text-muted-foreground'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start mb-4">
-                  <div className="bg-secondary/50 rounded-lg p-4">
-                    <div className="flex gap-2">
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-lg p-3">
+                <p className="text-sm text-muted-foreground">Thinking...</p>
+              </div>
+            </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
-        {!isGuest ? (
-          <div className="p-4 border-t border-border">
-            <div className="relative">
-              <input
-                type="text"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                disabled={isLoading || isFetching}
-                placeholder={`Ask ${persona.name.split(" ")[0]} a question...`}
-                className="w-full bg-secondary border border-border rounded-lg pl-4 pr-12 py-3 text-sm disabled:opacity-50"
-              />
-              <Button
-                size="icon"
-                onClick={handleSendMessage}
-                disabled={isLoading || !question.trim() || isFetching}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-primary hover:bg-primary/90 h-8 w-8 disabled:opacity-50"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="p-4 border-t border-border bg-primary/10">
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <Lock className="h-4 w-4" />
-                <span>Sign up to continue this conversation</span>
-              </div>
-              <Button 
-                className="w-full bg-primary hover:bg-primary/90"
-                onClick={() => onAuthRequired?.()}
-              >
-                Create Free Account
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Input */}
+        <div className="p-6 border-t border-border">
+          <form onSubmit={handleSubmit} className="flex space-x-2">
+            <input
+              type="text"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Ask Persona a question..."
+              className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={isLoading || isGuest}
+            />
+            <Button type="submit" disabled={isLoading || !question.trim() || isGuest}>
+              {isGuest ? <Lock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </form>
+          {isGuest && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Sign in to chat with this persona
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

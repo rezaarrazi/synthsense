@@ -192,21 +192,9 @@ export const GENERATE_CUSTOM_COHORT_MUTATION = gql`
   }
 `;
 
-export const CREATE_PERSONA_CONVERSATION_MUTATION = gql`
-  mutation CreatePersonaConversation($token: String!, $conversationData: PersonaConversationCreateInput!) {
-    createPersonaConversation(token: $token, conversationData: $conversationData) {
-      id
-      experimentId
-      personaId
-      userId
-      createdAt
-      updatedAt
-    }
-  }
-`;
 
 export const GET_CONVERSATION_MESSAGES_MUTATION = gql`
-  mutation GetConversationMessages($token: String!, $conversationId: ID!) {
+  mutation GetConversationMessages($token: String!, $conversationId: String!) {
     getConversationMessages(token: $token, conversationId: $conversationId) {
       id
       conversationId
@@ -218,7 +206,7 @@ export const GET_CONVERSATION_MESSAGES_MUTATION = gql`
 `;
 
 export const CHAT_WITH_PERSONA_MUTATION = gql`
-  mutation ChatWithPersona($token: String!, $conversationId: ID!, $personaId: ID!, $message: String!) {
+  mutation ChatWithPersona($token: String!, $conversationId: String!, $personaId: String!, $message: String!) {
     chatWithPersona(token: $token, conversationId: $conversationId, personaId: $personaId, message: $message) {
       message
       conversationId

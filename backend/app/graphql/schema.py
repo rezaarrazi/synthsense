@@ -141,6 +141,17 @@ class SimulationResultType:
 
 
 @strawberry.type
+class PersonaMessageType:
+    id: str
+    conversation_id: str
+    role: str
+    content: str
+    created_at: datetime
+
+
+@strawberry.type
 class ChatResponseType:
     message: str
     conversation_id: UUID
+
+

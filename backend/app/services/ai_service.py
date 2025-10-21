@@ -2,7 +2,7 @@ from typing import Optional, Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from app.config import settings
 
 
@@ -105,31 +105,7 @@ class PersonaChatChain:
     
     def __init__(self):
         self.llm = LLMFactory.create_llm(temperature=0.7, max_tokens=300)
-        self.checkpointer = None
-        self.graph = None
     
-    async def _setup_graph(self):
-        """Initialize the LangGraph with PostgresSaver."""
-        if self.graph is not None:
-            return
-            
-        # Initialize PostgresSaver
-        self.checkpointer = PostgresSaver.from_conn_string(settings.DATABASE_URL)
-        await self.checkpointer.setup()
-        
-        # Define the chat node
-        async def chat_node(state: MessagesState):
-            response = await self.llm.ainvoke(state["messages"])
-            return {"messages": [response]}
-        
-        # Build the graph
-        builder = StateGraph(MessagesState)
-        builder.add_node("chat", chat_node)
-        builder.add_edge(START, "chat")
-        builder.add_edge("chat", END)
-        
-        # Compile with checkpointer
-        self.graph = builder.compile(checkpointer=self.checkpointer)
     
     async def chat_with_persona(
         self,
@@ -137,16 +113,38 @@ class PersonaChatChain:
         initial_response: str,
         likert_score: int,
         idea_text: str,
-        conversation_history: list,
         user_message: str,
         conversation_id: str
     ) -> str:
         """Generate persona response using LangGraph with persistent memory."""
         
-        await self._setup_graph()
+        # Convert SQLAlchemy URL to psycopg URL for AsyncPostgresSaver
+        db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
         
-        # Build system prompt
-        system_prompt = f"""You are participating in a consumer research follow-up interview. You must stay in character as the following persona:
+        # Create connection pool for AsyncPostgresSaver (same as working example)
+        from psycopg_pool import AsyncConnectionPool
+        pool = AsyncConnectionPool(db_url, kwargs={"autocommit": True, "prepare_threshold": None})
+        
+        async with pool.connection() as conn:
+            checkpointer = AsyncPostgresSaver(conn)
+            await checkpointer.setup()
+            
+            # Define the chat node
+            async def chat_node(state: MessagesState):
+                response = await self.llm.ainvoke(state["messages"])
+                return {"messages": [response]}
+            
+            # Build the graph
+            builder = StateGraph(MessagesState)
+            builder.add_node("chat", chat_node)
+            builder.add_edge(START, "chat")
+            builder.add_edge("chat", END)
+            
+            # Compile with checkpointer
+            graph = builder.compile(checkpointer=checkpointer)
+            
+            # Build system prompt
+            system_prompt = f"""You are participating in a consumer research follow-up interview. You must stay in character as the following persona:
 
 {persona_profile}
 
@@ -165,31 +163,24 @@ INSTRUCTIONS:
 - If asked to change your mind, respond realistically based on your persona's values and situation
 - Keep responses concise (2-4 sentences unless asked for more detail)"""
 
-        # Build initial messages
-        messages = [SystemMessage(content=system_prompt)]
-        
-        # Add conversation history
-        for msg in conversation_history:
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            elif msg["role"] == "assistant":
-                messages.append(SystemMessage(content=msg["content"]))
-        
-        # Add current user message
-        messages.append(HumanMessage(content=user_message))
-        
-        # Configure thread for this conversation
-        config = {
-            "configurable": {
-                "thread_id": conversation_id
+            # Build initial messages
+            messages = [SystemMessage(content=system_prompt)]
+            
+            # Add current user message
+            messages.append(HumanMessage(content=user_message))
+            
+            # Configure thread for this conversation
+            config = {
+                "configurable": {
+                    "thread_id": conversation_id
+                }
             }
-        }
-        
-        # Run the graph
-        result = await self.graph.ainvoke(
-            {"messages": messages},
-            config
-        )
-        
-        # Return the last message content
-        return result["messages"][-1].content.strip()
+            
+            # Run the graph
+            result = await graph.ainvoke(
+                {"messages": messages},
+                config
+            )
+            
+            # Return the last message content
+            return result["messages"][-1].content.strip()

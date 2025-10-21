@@ -176,7 +176,31 @@ export const GENERATE_CUSTOM_COHORT_MUTATION = gql`
   }
 `;
 
-// Chat mutations
+export const CREATE_PERSONA_CONVERSATION_MUTATION = gql`
+  mutation CreatePersonaConversation($token: String!, $conversationData: PersonaConversationCreateInput!) {
+    createPersonaConversation(token: $token, conversationData: $conversationData) {
+      id
+      experimentId
+      personaId
+      userId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const GET_CONVERSATION_MESSAGES_MUTATION = gql`
+  mutation GetConversationMessages($token: String!, $conversationId: ID!) {
+    getConversationMessages(token: $token, conversationId: $conversationId) {
+      id
+      conversationId
+      role
+      content
+      createdAt
+    }
+  }
+`;
+
 export const CHAT_WITH_PERSONA_MUTATION = gql`
   mutation ChatWithPersona($token: String!, $conversationId: ID!, $personaId: ID!, $message: String!) {
     chatWithPersona(token: $token, conversationId: $conversationId, personaId: $personaId, message: $message) {

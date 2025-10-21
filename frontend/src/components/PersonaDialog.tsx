@@ -1,8 +1,14 @@
 import { X, Send, Lock } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useMutation } from '@apollo/client';
+import { 
+  CREATE_PERSONA_CONVERSATION_MUTATION, 
+  GET_CONVERSATION_MESSAGES_MUTATION, 
+  CHAT_WITH_PERSONA_MUTATION 
+} from "@/graphql/queries";
 
 interface Persona {
   id: string;
@@ -15,7 +21,7 @@ interface Persona {
   sentiment: "adopt" | "mixed" | "not";
   tags: string[];
   response: string;
-  persona_data: any;
+  persona_data: Record<string, unknown>;
   likert: number;
 }
 
@@ -47,6 +53,11 @@ export const PersonaDialog = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading } = useAuth();
+  
+  // GraphQL mutations
+  const [createConversation] = useMutation(CREATE_PERSONA_CONVERSATION_MUTATION);
+  const [getMessages] = useMutation(GET_CONVERSATION_MESSAGES_MUTATION);
+  const [chatWithPersona] = useMutation(CHAT_WITH_PERSONA_MUTATION);
 
   useEffect(() => {
     // Only load conversation when not loading auth state
@@ -59,7 +70,7 @@ export const PersonaDialog = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const loadOrCreateConversation = async () => {
+  const loadOrCreateConversation = useCallback(async () => {
     setIsFetching(true);
     
     if (isGuest) {
@@ -87,17 +98,60 @@ export const PersonaDialog = ({
         return;
       }
 
-      // TODO: Implement GraphQL queries for conversation management
-      // For now, create a mock conversation with the initial response
-      const mockConversationId = crypto.randomUUID();
-      setConversationId(mockConversationId);
-      
-      setMessages([{
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: persona.response,
-        created_at: new Date().toISOString()
-      }]);
+      // Create or get existing conversation
+      const { data: conversationData } = await createConversation({
+        variables: {
+          token: localStorage.getItem('access_token') || "",
+          conversationData: {
+            experimentId: experimentId,
+            personaId: persona.id
+          }
+        }
+      });
+
+      if (conversationData?.createPersonaConversation) {
+        const conversation = conversationData.createPersonaConversation;
+        setConversationId(conversation.id);
+
+        // Get existing messages
+        const { data: messagesData } = await getMessages({
+          variables: {
+            token: localStorage.getItem('access_token') || "",
+            conversationId: conversation.id
+          }
+        });
+
+        if (messagesData?.getConversationMessages) {
+          const existingMessages = messagesData.getConversationMessages.map((msg: { id: string; role: string; content: string; createdAt: string }) => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            created_at: msg.createdAt
+          }));
+          
+          if (existingMessages.length > 0) {
+            setMessages(existingMessages);
+          } else {
+            // No existing messages, show initial response
+            setMessages([{
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: persona.response,
+              created_at: new Date().toISOString()
+            }]);
+          }
+        } else {
+          // Fallback to initial response
+          setMessages([{
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: persona.response,
+            created_at: new Date().toISOString()
+          }]);
+        }
+      } else {
+        throw new Error('Failed to create conversation');
+      }
     } catch (error) {
       console.error("Error loading conversation:", error);
       toast({
@@ -108,7 +162,7 @@ export const PersonaDialog = ({
     } finally {
       setIsFetching(false);
     }
-  };
+  }, [isGuest, user, loading, persona.id, persona.response, experimentId, createConversation, getMessages, toast]);
 
   const handleSendMessage = async () => {
     if (!question.trim() || !conversationId || isLoading) return;
@@ -127,19 +181,28 @@ export const PersonaDialog = ({
     try {
       if (!user) throw new Error("Not authenticated");
       
-      // TODO: Implement GraphQL mutation for chat with persona
-      // For now, simulate a response
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Thank you for your question: "${userMessage.content}". As ${persona.name}, I'd be happy to discuss this further. This is a placeholder response until the chat functionality is fully implemented.`,
-        created_at: new Date().toISOString()
-      };
+      // Send message to backend using GraphQL
+      const { data } = await chatWithPersona({
+        variables: {
+          token: localStorage.getItem('access_token') || "",
+          conversationId: conversationId,
+          personaId: persona.id,
+          message: userMessage.content
+        }
+      });
 
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error: any) {
+      if (data?.chatWithPersona) {
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.chatWithPersona.message,
+          created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } else {
+        throw new Error('No response from persona');
+      }
+    } catch (error: unknown) {
       console.error('Error sending message:', error);
       
       // Remove the user message on error
@@ -147,7 +210,7 @@ export const PersonaDialog = ({
       
       toast({
         title: "Failed to send message",
-        description: error.message || "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
         variant: "destructive"
       });
     } finally {

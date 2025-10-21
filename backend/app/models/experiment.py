@@ -24,4 +24,3 @@ class Experiment(Base):
     # Relationships
     user = relationship("User", back_populates="experiments")
     survey_responses = relationship("SurveyResponse", back_populates="experiment", cascade="all, delete-orphan")
-    persona_conversations = relationship("PersonaConversation", back_populates="experiment", cascade="all, delete-orphan")

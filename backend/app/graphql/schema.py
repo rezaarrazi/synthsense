@@ -81,25 +81,6 @@ class SurveyResponseWithPersonaType:
     persona: Optional[PersonaType]
 
 
-@strawberry.type
-class PersonaConversationType:
-    id: UUID
-    experiment_id: UUID
-    persona_id: UUID
-    user_id: UUID
-    created_at: datetime
-    updated_at: datetime
-
-
-@strawberry.type
-class PersonaMessageType:
-    id: UUID
-    conversation_id: UUID
-    role: str
-    content: str
-    created_at: datetime
-
-
 # Input types for mutations
 @strawberry.input
 class UserCreateInput:
@@ -131,19 +112,6 @@ class ExperimentCreateInput:
 class PersonaGenerationJobCreateInput:
     audience_description: str
     persona_group: str
-
-
-@strawberry.input
-class PersonaConversationCreateInput:
-    experiment_id: UUID
-    persona_id: UUID
-
-
-@strawberry.input
-class PersonaMessageCreateInput:
-    conversation_id: UUID
-    role: str
-    content: str
 
 
 # Response types for mutations

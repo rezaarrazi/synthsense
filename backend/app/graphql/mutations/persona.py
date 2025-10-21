@@ -1,11 +1,17 @@
 import strawberry
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import uuid4
+from datetime import datetime
 from app.models.persona import PersonaGenerationJob
+from app.models.experiment import Experiment
+from app.models.persona import Persona
 from app.services.persona_service import PersonaService
-from app.graphql.schema import PersonaGenerationJobCreateInput, PersonaGenerationJobType
+from app.config import settings
+from app.graphql.schema import (
+    PersonaGenerationJobCreateInput, PersonaGenerationJobType
+)
 
 
 @strawberry.type
@@ -85,7 +91,7 @@ class PersonaMutation:
             created_at=job.created_at,
             updated_at=job.updated_at
         )
-
+    
 
 async def _generate_personas_background(
     persona_service: PersonaService,

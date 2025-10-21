@@ -5,14 +5,13 @@ from sqlalchemy import select, or_
 from uuid import uuid4
 from app.models.experiment import Experiment
 from app.models.persona import Persona, PersonaGenerationJob
-from app.models.survey import SurveyResponse, PersonaConversation, PersonaMessage
+from app.models.survey import SurveyResponse
 from app.services.simulation_service import SimulationService
 from app.services.persona_service import PersonaService
 from app.services.ai_service import PersonaChatChain
 from app.graphql.schema import (
     ExperimentCreateInput, PersonaGenerationJobCreateInput,
-    PersonaConversationCreateInput, PersonaMessageCreateInput,
-    SimulationResultType, ChatResponseType
+    SimulationResultType
 )
 
 
@@ -136,111 +135,3 @@ class SimulationMutation:
                     
         except Exception as e:
             raise Exception(f"Simulation failed: {str(e)}")
-    
-    @strawberry.mutation
-    async def chat_with_persona(
-        self,
-        token: str,
-        conversation_id: strawberry.ID,
-        persona_id: strawberry.ID,
-        message: str
-    ) -> ChatResponseType:
-        """Chat with a persona."""
-        try:
-            # Decode token to get user ID
-            from app.auth.jwt_handler import decode_token
-            payload = decode_token(token)
-            if not payload:
-                raise Exception("Invalid token")
-            
-            user_id = payload.get("sub")
-            if not user_id:
-                raise Exception("Invalid token")
-            
-            # Use async database session
-            from app.database import AsyncSessionLocal
-            async with AsyncSessionLocal() as db:
-        
-                # Verify conversation belongs to user
-                conv_result = await db.execute(
-                    select(PersonaConversation).where(
-                        PersonaConversation.id == conversation_id,
-                        PersonaConversation.user_id == user_id
-                    )
-                )
-                conversation = conv_result.scalar_one_or_none()
-                
-                if not conversation:
-                    raise Exception("Conversation not found or unauthorized")
-                
-                # Get persona with survey response
-                persona_result = await db.execute(
-                    select(Persona).where(Persona.id == persona_id)
-                )
-                persona = persona_result.scalar_one_or_none()
-                
-                if not persona:
-                    raise Exception("Persona not found")
-                
-                # Get survey response for this persona and experiment
-                survey_result = await db.execute(
-                    select(SurveyResponse).where(
-                        SurveyResponse.persona_id == persona_id,
-                        SurveyResponse.experiment_id == conversation.experiment_id
-                    )
-                )
-                survey_response = survey_result.scalar_one_or_none()
-                
-                if not survey_response:
-                    raise Exception("This persona hasn't participated in any experiments yet")
-                
-                # Get conversation history
-                messages_result = await db.execute(
-                    select(PersonaMessage).where(
-                        PersonaMessage.conversation_id == conversation_id
-                    ).order_by(PersonaMessage.created_at).limit(10)
-                )
-                messages = messages_result.scalars().all()
-                
-                conversation_history = [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in messages
-                ]
-                
-                # Save user message
-                user_message = PersonaMessage(
-                    conversation_id=conversation_id,
-                    role="user",
-                    content=message
-                )
-                db.add(user_message)
-                await db.commit()
-                
-                # Generate persona response
-                chat_service = PersonaChatChain()
-                
-                response_text = await chat_service.chat_with_persona(
-                    persona_profile=persona.persona_data,
-                    initial_response=survey_response.response_text,
-                    likert_score=survey_response.likert,
-                    idea_text="",  # Will be filled from experiment
-                    conversation_history=conversation_history,
-                    user_message=message
-                )
-                
-                # Save assistant response
-                assistant_message = PersonaMessage(
-                    conversation_id=conversation_id,
-                    role="assistant",
-                    content=response_text
-                )
-                db.add(assistant_message)
-                await db.commit()
-                
-                return ChatResponseType(
-                    message=response_text,
-                    conversation_id=conversation_id
-                )
-                
-        except Exception as e:
-            raise Exception(f"Chat failed: {str(e)}")

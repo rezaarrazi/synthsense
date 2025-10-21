@@ -42,4 +42,3 @@ class Persona(Base):
     user = relationship("User", back_populates="personas")
     generation_job = relationship("PersonaGenerationJob", back_populates="personas")
     survey_responses = relationship("SurveyResponse", back_populates="persona", cascade="all, delete-orphan")
-    persona_conversations = relationship("PersonaConversation", back_populates="persona", cascade="all, delete-orphan")

@@ -4,7 +4,6 @@ from app.config import settings
 from app.api.auth import router as auth_router
 from app.api.experiments import router as experiments_router
 from app.api.personas import router as personas_router
-from app.api.simulations import router as simulations_router
 from app.graphql.main import graphql_app
 
 app = FastAPI(
@@ -27,7 +26,6 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(experiments_router)
 app.include_router(personas_router)
-app.include_router(simulations_router)
 
 # Add GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")

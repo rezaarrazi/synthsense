@@ -2,7 +2,7 @@
 from .user import User
 from .experiment import Experiment
 from .persona import Persona, PersonaGenerationJob
-from .survey import SurveyResponse, PersonaConversation, PersonaMessage
+from .survey import SurveyResponse
 
 __all__ = [
     "User",
@@ -10,6 +10,4 @@ __all__ = [
     "Persona",
     "PersonaGenerationJob",
     "SurveyResponse",
-    "PersonaConversation",
-    "PersonaMessage",
 ]

@@ -173,9 +173,15 @@ The final recommendation MUST be a continuous paragraph, strictly between 80 and
         # Parse JSON response
         try:
             recommendation_data = json.loads(response.content.strip())
-            return recommendation_data.get("recommendation", "No recommendation available")
+            return {
+                "title": recommendation_data.get("short_title", "Experiment"),
+                "recommendation": recommendation_data.get("recommendation", "No recommendation available")
+            }
         except json.JSONDecodeError:
-            return response.content.strip()
+            return {
+                "title": "Experiment",
+                "recommendation": response.content.strip()
+            }
     
     async def run_simulation(
         self,
@@ -218,7 +224,7 @@ The final recommendation MUST be a continuous paragraph, strictly between 80 and
             property_distributions = self._calculate_property_distributions(all_results)
             
             # Generate recommendation
-            recommendation = await self._generate_recommendation(
+            recommendation_data = await self._generate_recommendation(
                 idea_text, 
                 sentiment_breakdown, 
                 property_distributions
@@ -243,7 +249,8 @@ The final recommendation MUST be a continuous paragraph, strictly between 80 and
                 "scores": scores,
                 "sentiment_breakdown": sentiment_breakdown,
                 "property_distributions": property_distributions,
-                "recommendation": recommendation,
+                "title": recommendation_data["title"],
+                "recommendation": recommendation_data["recommendation"],
                 "status": "completed",
                 "error_message": None
             }
@@ -256,6 +263,7 @@ The final recommendation MUST be a continuous paragraph, strictly between 80 and
                 "scores": [],
                 "sentiment_breakdown": {},
                 "property_distributions": {},
+                "title": "Experiment",
                 "recommendation": "",
                 "status": "error",
                 "error_message": str(e)

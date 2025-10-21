@@ -97,6 +97,7 @@ class SimulationMutation:
                     
                     # Update experiment with results
                     experiment.status = result["status"]
+                    experiment.title = result["title"]
                     experiment.results_summary = {
                         "sentiment_breakdown": result["sentiment_breakdown"],
                         "property_distributions": result["property_distributions"]
@@ -125,7 +126,7 @@ class SimulationMutation:
                         sentiment_breakdown=result["sentiment_breakdown"],
                         property_distributions=result["property_distributions"],
                         recommendation=result["recommendation"],
-                        title=None  # Will be set later
+                        title=result["title"]
                     )
                     
                 except Exception as e:

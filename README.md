@@ -70,16 +70,26 @@ A modern web application for conducting AI-powered consumer research using synth
 
 2. **Set up environment variables**
    ```bash
+   # Copy example files
+   cp .env.example .env
    cp backend/env.example backend/.env
    cp frontend/env.example frontend/.env
    ```
    
    Edit the `.env` files with your configuration:
    ```env
+   # .env (for Docker Compose)
+   DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/synthsense
+   JWT_SECRET=your-secret-key-change-in-production
+   OPENAI_API_KEY=your-openai-api-key-here
+   GEMINI_API_KEY=your-gemini-key-here
+   LLM_PROVIDER=openai
+   MODEL=gpt-4o
+   
    # backend/.env
    DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/synthsense
    JWT_SECRET=your-secret-key-change-in-production
-   OPENAI_API_KEY=sk-your-openai-key-here
+   OPENAI_API_KEY=your-openai-api-key-here
    GEMINI_API_KEY=your-gemini-key-here
    LLM_PROVIDER=openai
    MODEL=gpt-4o
@@ -251,6 +261,18 @@ npm test
    ```
 
 ### Environment Variables
+
+#### Root (.env) - For Docker Compose
+```env
+DATABASE_URL=postgresql+asyncpg://user:pass@host:port/db
+JWT_SECRET=your-secret-key
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
+LLM_PROVIDER=openai
+MODEL=gpt-4o
+ENVIRONMENT=production
+DEBUG=false
+```
 
 #### Backend (.env)
 ```env

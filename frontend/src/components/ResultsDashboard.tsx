@@ -106,7 +106,7 @@ export const ResultsDashboard = ({
             
             mockPersonas.push({
               id: persona.id,
-              name: personaData.name || personaData.persona_name || `Persona ${persona.id.slice(-4)}`,
+              name: personaName,
               title: personaData.occupation || 'Unknown',
               income: personaData.income_level || 'N/A',
               age: personaData.age || 0,
@@ -668,6 +668,12 @@ export const ResultsDashboard = ({
         open={authDialogOpen}
         onOpenChange={setAuthDialogOpen}
         defaultMode={authMode}
+        onAuthComplete={(callback) => {
+          // Close dialog and refresh the page to show the saved experiment
+          callback();
+          // Refresh the page to load the saved experiment
+          window.location.reload();
+        }}
       />
     </div>
   );

@@ -131,6 +131,12 @@ export const IdeaInput = ({ onSubmit }: { onSubmit: (experimentId: string) => vo
         message={hasUsedGuestMode() 
           ? "You've used your free trial. Sign up to continue testing ideas!" 
           : "Sign up to test your idea with AI personas and get instant feedback"}
+        onAuthComplete={(callback) => {
+          // Close dialog and refresh the page to show the saved experiment
+          callback();
+          // Refresh the page to load the saved experiment
+          window.location.reload();
+        }}
       />
     </div>
   );

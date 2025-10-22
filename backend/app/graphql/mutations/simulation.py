@@ -177,6 +177,7 @@ class SimulationMutation:
                 personas_data = [
                     {
                         "id": str(persona.id),
+                        "persona_name": persona.persona_name,
                         "persona_data": persona.persona_data
                     }
                     for persona in personas

@@ -25,6 +25,7 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authCompleted, setAuthCompleted] = useState(false);
+  const [hasSavedGuestSimulation, setHasSavedGuestSimulation] = useState(false);
   const { toast } = useToast();
   const { user, loading: authLoading, signup, login } = useAuth();
   
@@ -67,9 +68,10 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
 
   // Close dialog when user is authenticated and not loading
   useEffect(() => {
-    if (authCompleted && user && !authLoading) {
+    if (authCompleted && user && !authLoading && !hasSavedGuestSimulation) {
       if (onAuthComplete) {
         // Save guest simulation before clearing localStorage
+        setHasSavedGuestSimulation(true);
         saveGuestSimulationToDatabase().then((savedExperiment) => {
           // Wait for IdeaInput to confirm UI is ready
           onAuthComplete(() => {
@@ -113,7 +115,7 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
         setFullName("");
       }
     }
-  }, [authCompleted, user, authLoading, onOpenChange, onAuthComplete, saveGuestSimulationToDatabase, toast]);
+  }, [authCompleted, user, authLoading, hasSavedGuestSimulation, onOpenChange, onAuthComplete, saveGuestSimulationToDatabase, toast]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();

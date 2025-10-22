@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PersonaDialog } from "./PersonaDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AuthDialog } from "./AuthDialog";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from '@apollo/client';
 import { GET_EXPERIMENT_QUERY, GET_EXPERIMENT_RESPONSES_QUERY } from "@/graphql/queries";
 

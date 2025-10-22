@@ -4,9 +4,15 @@ import { IdeaInput } from "@/components/IdeaInput";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [currentExperimentId, setCurrentExperimentId] = useState<string | null>(null);
+  const { user } = useAuth();
+  
+  // Debug key prop changes
+  const ideaInputKey = user?.id || 'no-user';
+  console.log('Index render - user:', user?.id || 'null', 'key:', ideaInputKey);
 
   return (
     <SidebarProvider>
@@ -30,7 +36,7 @@ const Index = () => {
           {currentExperimentId ? (
             <ResultsDashboard experimentId={currentExperimentId} onBack={() => setCurrentExperimentId(null)} />
           ) : (
-            <IdeaInput onSubmit={setCurrentExperimentId} />
+            <IdeaInput key={ideaInputKey} onSubmit={setCurrentExperimentId} />
           )}
         </main>
       </div>

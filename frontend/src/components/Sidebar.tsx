@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/sidebar";
 import { AuthDialog } from "./AuthDialog";
 import { AccountSettingsDialog } from "./AccountSettingsDialog";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useExperiments } from "@/hooks/useExperiments";
 import { useExperimentMutations } from "@/hooks/useExperimentMutations";
 import { formatDistanceToNow } from "date-fns";
@@ -202,7 +202,10 @@ export const Sidebar = ({ onExperimentSelect }: SidebarProps) => {
           open ? "opacity-100 max-h-screen" : "opacity-0 max-h-0 overflow-hidden"
         }`}
       >
-        {authLoading ? (
+        {(() => {
+          console.log('Sidebar auth state - authLoading:', authLoading, 'user:', user?.id || 'null');
+          return authLoading;
+        })() ? (
           <div className="flex items-center justify-center py-4">
             <div className="text-sm text-muted-foreground">Loading...</div>
           </div>

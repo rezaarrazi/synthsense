@@ -3,7 +3,7 @@ import { Check, ChevronDown, Search, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_PERSONA_GROUPS_QUERY, DELETE_COHORT_MUTATION } from '../graphql/queries';
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "./ui/input";
 import { CreateCustomCohortDialog } from "./CreateCustomCohortDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -52,10 +52,18 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
   }, [user]);
 
   // Get persona groups using GraphQL with polling
-  const { data: personaGroupsData, loading: groupsLoading } = useQuery(GET_PERSONA_GROUPS_QUERY, {
+  const { data: personaGroupsData, loading: groupsLoading, refetch } = useQuery(GET_PERSONA_GROUPS_QUERY, {
     skip: !user,
     pollInterval: 10000, // Poll every 10 seconds for updates (less frequent than experiments)
+    fetchPolicy: 'cache-and-network', // Always fetch fresh data but use cache while loading
   });
+
+  // Refetch persona groups immediately when user logs in
+  useEffect(() => {
+    if (user) {
+      refetch();
+    }
+  }, [user, refetch]);
 
   const [deleteCohort, { loading: isDeleting }] = useMutation(DELETE_COHORT_MUTATION, {
     refetchQueries: [GET_PERSONA_GROUPS_QUERY],
@@ -150,11 +158,12 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
     return null;
   }
 
-  // Show loading state while data is being fetched
-  if (groupsLoading && options.length === 0) {
+  // Show default state immediately, don't wait for GraphQL query
+  // This prevents the delay in IdeaInput during sign-in
+  if (options.length === 0) {
     return (
       <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2.5 text-foreground min-w-[200px] justify-between">
-        <span className="text-sm font-medium text-muted-foreground">Loading...</span>
+        <span className="text-sm font-medium">General Audience</span>
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </div>
     );

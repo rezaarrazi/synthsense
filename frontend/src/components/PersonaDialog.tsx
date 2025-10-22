@@ -2,7 +2,7 @@ import { X, Send, Lock } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMutation } from '@apollo/client';
 import { 
   GET_CONVERSATION_MESSAGES_MUTATION,

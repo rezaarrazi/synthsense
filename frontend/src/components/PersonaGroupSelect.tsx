@@ -220,7 +220,7 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
                         }}
                         className="flex-1 flex items-start gap-3"
                       >
-                        <div className="flex-1">
+                        <div className="flex-1 text-left">
                           <div className="font-medium text-foreground">{option.label}</div>
                           <div className="text-sm text-muted-foreground">{option.description}</div>
                         </div>

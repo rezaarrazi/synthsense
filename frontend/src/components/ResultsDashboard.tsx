@@ -40,6 +40,7 @@ export const ResultsDashboard = ({
   const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
   const { user } = useAuth();
   const [visibleCount, setVisibleCount] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [experiment, setExperiment] = useState<any>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -150,9 +151,9 @@ export const ResultsDashboard = ({
   }, [experimentId, experimentData, fetchExperimentData]);
 
   useEffect(() => {
-    // Reset pagination when filter changes
+    // Reset pagination when filter or search changes
     setVisibleCount(10);
-  }, [activeFilter]);
+  }, [activeFilter, searchQuery]);
 
   if (loading || experimentLoading || responsesLoading) {
     return (
@@ -170,16 +171,23 @@ export const ResultsDashboard = ({
     );
   }
 
-  const adoptCount = personas.filter(p => p.sentiment === "adopt").length;
-  const mixedCount = personas.filter(p => p.sentiment === "mixed").length;
-  const notCount = personas.filter(p => p.sentiment === "not").length;
-  const totalCount = personas.length;
-  const adoptPercent = totalCount > 0 ? Math.round((adoptCount / totalCount) * 100) : 0;
-
-  const filteredPersonas = personas.filter(
-    (p) => activeFilter === "all" || p.sentiment === activeFilter
-  );
+  // Filter personas by sentiment and search query
+  const filteredPersonas = personas.filter((p) => {
+    const matchesFilter = activeFilter === "all" || p.sentiment === activeFilter;
+    const matchesSearch = !searchQuery.trim() || 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
   const visiblePersonas = activeFilter === "all" ? filteredPersonas : filteredPersonas.slice(0, visibleCount);
+
+  const adoptCount = filteredPersonas.filter(p => p.sentiment === "adopt").length;
+  const mixedCount = filteredPersonas.filter(p => p.sentiment === "mixed").length;
+  const notCount = filteredPersonas.filter(p => p.sentiment === "not").length;
+  const totalCount = filteredPersonas.length;
+  const adoptPercent = totalCount > 0 ? Math.round((adoptCount / totalCount) * 100) : 0;
 
   return (
     <div className="flex-1 overflow-auto">
@@ -343,6 +351,8 @@ export const ResultsDashboard = ({
             <input
               type="text"
               placeholder="Search personas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-secondary border border-border rounded-lg pl-10 pr-4 py-2 text-sm"
             />
           </div>
@@ -363,7 +373,7 @@ export const ResultsDashboard = ({
                   {openAdopt ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-2 pl-4">
-                  {personas.filter(p => p.sentiment === "adopt").map((persona) => (
+                  {filteredPersonas.filter(p => p.sentiment === "adopt").map((persona) => (
                     <button
                       key={persona.id}
                       onClick={() => setSelectedPersona(persona)}
@@ -402,7 +412,7 @@ export const ResultsDashboard = ({
                   {openMixed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-2 pl-4">
-                  {personas.filter(p => p.sentiment === "mixed").map((persona) => (
+                  {filteredPersonas.filter(p => p.sentiment === "mixed").map((persona) => (
                     <button
                       key={persona.id}
                       onClick={() => setSelectedPersona(persona)}
@@ -441,7 +451,7 @@ export const ResultsDashboard = ({
                   {openNot ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-2 pl-4">
-                  {personas.filter(p => p.sentiment === "not").map((persona) => (
+                  {filteredPersonas.filter(p => p.sentiment === "not").map((persona) => (
                     <button
                       key={persona.id}
                       onClick={() => setSelectedPersona(persona)}
@@ -473,7 +483,7 @@ export const ResultsDashboard = ({
           ) : (
             <div className="space-y-2">
               <div className="text-sm text-muted-foreground">
-                ALL PERSONAS • {filteredPersonas.length}
+                {searchQuery.trim() ? `SEARCH RESULTS • ${filteredPersonas.length}` : `ALL PERSONAS • ${filteredPersonas.length}`}
               </div>
               
               <div className="space-y-2">

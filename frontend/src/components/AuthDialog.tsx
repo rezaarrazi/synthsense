@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from '@apollo/client';
+import { SAVE_GUEST_SIMULATION_MUTATION } from "@/graphql/queries";
 
 interface AuthDialogProps {
   open: boolean;
@@ -25,19 +27,81 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
   const [authCompleted, setAuthCompleted] = useState(false);
   const { toast } = useToast();
   const { user, loading: authLoading, signup, login } = useAuth();
+  
+  // Mutation to save guest simulation
+  const [saveGuestSimulation] = useMutation(SAVE_GUEST_SIMULATION_MUTATION);
+
+  // Function to save guest simulation to database
+  const saveGuestSimulationToDatabase = useCallback(async () => {
+    try {
+      const guestDataStr = localStorage.getItem('guestSimulationResult');
+      if (!guestDataStr) return null;
+
+      const guestData = JSON.parse(guestDataStr);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) return null;
+
+      const { data } = await saveGuestSimulation({
+        variables: {
+          token,
+          guestData: {
+            ideaText: guestData.ideaText,
+            questionText: "Based on this information, how likely are you to purchase this product?",
+            personas: guestData.personas,
+            responses: guestData.responses,
+            sentimentBreakdown: guestData.sentimentBreakdown,
+            propertyDistributions: guestData.propertyDistributions,
+            recommendation: guestData.recommendation,
+            title: guestData.title
+          }
+        }
+      });
+
+      return data?.saveGuestSimulation;
+    } catch (error) {
+      console.error('Failed to save guest simulation:', error);
+      return null;
+    }
+  }, [saveGuestSimulation]);
 
   // Close dialog when user is authenticated and not loading
   useEffect(() => {
     if (authCompleted && user && !authLoading) {
       if (onAuthComplete) {
-        // Wait for IdeaInput to confirm UI is ready
-        onAuthComplete(() => {
-          onOpenChange(false);
-          setAuthCompleted(false);
-          // Reset form
-          setEmail("");
-          setPassword("");
-          setFullName("");
+        // Save guest simulation before clearing localStorage
+        saveGuestSimulationToDatabase().then((savedExperiment) => {
+          // Wait for IdeaInput to confirm UI is ready
+          onAuthComplete(() => {
+            onOpenChange(false);
+            setAuthCompleted(false);
+            // Reset form
+            setEmail("");
+            setPassword("");
+            setFullName("");
+            
+            // Clear guest data after successful save
+            localStorage.removeItem('guestSimulationResult');
+            localStorage.removeItem('synthsense_guest_used');
+            localStorage.removeItem('synthsense_guest_timestamp');
+            
+            if (savedExperiment) {
+              toast({
+                title: "Simulation saved!",
+                description: "Your guest simulation has been saved to your account.",
+              });
+            }
+          });
+        }).catch((error) => {
+          console.error('Error saving guest simulation:', error);
+          // Still proceed with auth completion even if save fails
+          onAuthComplete(() => {
+            onOpenChange(false);
+            setAuthCompleted(false);
+            setEmail("");
+            setPassword("");
+            setFullName("");
+          });
         });
       } else {
         // Fallback: close immediately if no callback provided
@@ -49,7 +113,7 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
         setFullName("");
       }
     }
-  }, [authCompleted, user, authLoading, onOpenChange, onAuthComplete]);
+  }, [authCompleted, user, authLoading, onOpenChange, onAuthComplete, saveGuestSimulationToDatabase, toast]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,11 +123,6 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
       if (mode === "signup") {
         await signup(email, password, fullName || undefined);
         
-        // Clear guest data on successful signup
-        localStorage.removeItem('guestSimulationResult');
-        localStorage.removeItem('synthsense_guest_used');
-        localStorage.removeItem('synthsense_guest_timestamp');
-
         toast({
           title: "Account created!",
           description: "You can now start using SynthSense.",
@@ -72,11 +131,6 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
       } else {
         await login(email, password);
         
-        // Clear guest data on successful signin
-        localStorage.removeItem('guestSimulationResult');
-        localStorage.removeItem('synthsense_guest_used');
-        localStorage.removeItem('synthsense_guest_timestamp');
-
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in.",

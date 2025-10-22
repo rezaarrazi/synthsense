@@ -76,12 +76,82 @@ export const ResultsDashboard = ({
 
       setExperiment({
         id: 'guest-simulation',
-        ideaText: guestData.idea_text,
-        recommendedNextStep: guestData.recommended_next_step,
+        ideaText: guestData.ideaText || 'Guest Simulation', // Use ideaText from the result
+        recommendedNextStep: guestData.recommendation || 'No recommendation available',
         createdAt: new Date().toISOString(),
       });
 
-      setPersonas(guestData.personas || []);
+      // For guest simulations, use the real persona data from the backend
+      const mockPersonas: Persona[] = [];
+      
+      if (guestData.personas && guestData.responses) {
+        // Transform the real persona data similar to authenticated version
+        const personasData = guestData.personas as any[];
+        const responsesData = guestData.responses as any[];
+        
+        // Create a map of persona_id to response for quick lookup
+        const responseMap = new Map();
+        responsesData.forEach((response: any) => {
+          responseMap.set(response.persona_id, response);
+        });
+        
+        personasData.forEach((persona: any) => {
+          const response = responseMap.get(persona.id);
+          if (response) {
+            const personaData = persona.persona_data || {};
+            const sentiment = response.score >= 4 ? "adopt" : response.score === 3 ? "mixed" : "not";
+
+            // Use the actual persona name from the database
+            const personaName = persona.persona_name || `Persona ${persona.id.slice(-4)}`;
+            
+            mockPersonas.push({
+              id: persona.id,
+              name: personaData.name || personaData.persona_name || `Persona ${persona.id.slice(-4)}`,
+              title: personaData.occupation || 'Unknown',
+              income: personaData.income_level || 'N/A',
+              age: personaData.age || 0,
+              location: personaData.city_country || personaData.location || 'Unknown',
+              avatar: personaName.substring(0, 2).toUpperCase(),
+              sentiment: sentiment,
+              tags: [
+                personaData.sex,
+                personaData.age ? `${personaData.age} years old` : null,
+                personaData.education,
+                personaData.income_level ? `${personaData.income_level} income` : null,
+                personaData.relationship_status
+              ].filter(Boolean),
+              response: response.response_text,
+              persona_data: personaData,
+              likert: response.score
+            });
+          }
+        });
+      } else {
+        // Fallback to mock personas if no real data available
+        const sentimentBreakdown = guestData.sentimentBreakdown || {};
+        
+        Object.entries(sentimentBreakdown).forEach(([sentiment, data]: [string, any]) => {
+          const count = data.count || 0;
+          for (let i = 0; i < count; i++) {
+            mockPersonas.push({
+              id: `guest-${sentiment}-${i}`,
+              name: `${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)} Persona ${i + 1}`,
+              title: 'Guest Persona',
+              income: 'N/A',
+              age: 0,
+              location: 'N/A',
+              avatar: '', // Empty to show initials
+              sentiment: sentiment as "adopt" | "mixed" | "not",
+              tags: ['guest'],
+              response: `This is a ${sentiment} response from a guest simulation. Sign up to see detailed persona responses.`,
+              persona_data: {},
+              likert: sentiment === 'adopt' ? 4 : sentiment === 'mixed' ? 3 : 2
+            });
+          }
+        });
+      }
+
+      setPersonas(mockPersonas);
       setLoading(false);
     } catch (error) {
       console.error("Error loading guest results:", error);
@@ -495,7 +565,27 @@ export const ResultsDashboard = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-                        {persona.avatar}
+                        {persona.avatar && persona.avatar.startsWith('/') ? (
+                          <img 
+                            src={persona.avatar} 
+                            alt={persona.name}
+                            className="w-full h-full rounded-full object-cover"
+                            onError={(e) => {
+                              // Fallback to initials if image fails to load
+                              e.currentTarget.style.display = 'none';
+                              const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (nextElement) {
+                                nextElement.style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className="w-full h-full rounded-full flex items-center justify-center text-xs font-semibold"
+                          style={{ display: persona.avatar && persona.avatar.startsWith('/') ? 'none' : 'flex' }}
+                        >
+                          {persona.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
                       </div>
                       <div>
                         <div className="font-semibold text-foreground">{persona.name}</div>

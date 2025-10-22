@@ -281,7 +281,8 @@ The final recommendation MUST be a continuous paragraph, strictly between 80 and
                 {
                     "persona_id": result["persona_id"],
                     "persona_data": result["persona_data"],
-                    "response_text": result["response_text"]
+                    "response_text": result["response_text"],
+                    "score": result["score"]
                 }
                 for result in all_results
             ]

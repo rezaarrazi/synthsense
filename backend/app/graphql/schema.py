@@ -109,6 +109,24 @@ class ExperimentCreateInput:
 
 
 @strawberry.input
+class GuestSimulationInput:
+    idea_text: str
+    question_text: str = "Based on this information, how likely are you to purchase this product?"
+
+
+@strawberry.input
+class SaveGuestSimulationInput:
+    idea_text: str
+    question_text: str = "Based on this information, how likely are you to purchase this product?"
+    personas: strawberry.scalars.JSON
+    responses: strawberry.scalars.JSON
+    sentiment_breakdown: strawberry.scalars.JSON
+    property_distributions: strawberry.scalars.JSON
+    recommendation: str
+    title: str
+
+
+@strawberry.input
 class PersonaGenerationJobCreateInput:
     audience_description: str
     persona_group: str
@@ -138,6 +156,20 @@ class SimulationResultType:
     property_distributions: Optional[strawberry.scalars.JSON]
     recommendation: Optional[str]
     title: Optional[str]
+
+
+@strawberry.type
+class GuestSimulationResultType:
+    experiment_id: str
+    status: str
+    total_processed: int
+    total_personas: int
+    sentiment_breakdown: Optional[strawberry.scalars.JSON]
+    property_distributions: Optional[strawberry.scalars.JSON]
+    recommendation: Optional[str]
+    title: Optional[str]
+    personas: Optional[strawberry.scalars.JSON]
+    responses: Optional[strawberry.scalars.JSON]
 
 
 @strawberry.type

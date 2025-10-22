@@ -135,6 +135,38 @@ export const RUN_SIMULATION_MUTATION = gql`
   }
 `;
 
+export const RUN_GUEST_SIMULATION_MUTATION = gql`
+  mutation RunGuestSimulation($guestData: GuestSimulationInput!) {
+    runGuestSimulation(guestData: $guestData) {
+      experimentId
+      status
+      totalProcessed
+      totalPersonas
+      sentimentBreakdown
+      propertyDistributions
+      recommendation
+      title
+      personas
+      responses
+    }
+  }
+`;
+
+export const SAVE_GUEST_SIMULATION_MUTATION = gql`
+  mutation SaveGuestSimulation($token: String!, $guestData: SaveGuestSimulationInput!) {
+    saveGuestSimulation(token: $token, guestData: $guestData) {
+      experimentId
+      status
+      totalProcessed
+      totalPersonas
+      sentimentBreakdown
+      propertyDistributions
+      recommendation
+      title
+    }
+  }
+`;
+
 // Experiment mutations
 export const DELETE_EXPERIMENT_MUTATION = gql`
   mutation DeleteExperiment($token: String!, $experimentId: ID!) {

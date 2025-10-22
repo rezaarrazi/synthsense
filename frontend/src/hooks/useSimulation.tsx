@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from '@apollo/client';
-import { RUN_SIMULATION_MUTATION, GET_PERSONA_GROUPS_QUERY } from '../graphql/queries';
+import { RUN_SIMULATION_MUTATION, RUN_GUEST_SIMULATION_MUTATION, GET_PERSONA_GROUPS_QUERY } from '../graphql/queries';
 import { useAuth } from './useAuth';
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,7 +14,7 @@ interface SimulationResult {
     mixed: { count: number; percentage: string };
     not: { count: number; percentage: string };
   };
-  propertyDistributions?: any;
+  propertyDistributions?: Record<string, unknown>;
   recommendation?: string;
   title?: string;
 }
@@ -46,6 +46,9 @@ export const useSimulation = (onAuthRequired?: () => void) => {
 
   // Run simulation mutation
   const [runSimulationMutation, { data: simulationData, error: simulationError }] = useMutation(RUN_SIMULATION_MUTATION);
+  
+  // Run guest simulation mutation
+  const [runGuestSimulationMutation, { data: guestSimulationData, error: guestSimulationError }] = useMutation(RUN_GUEST_SIMULATION_MUTATION);
 
   // Handle simulation errors
   useEffect(() => {
@@ -59,6 +62,19 @@ export const useSimulation = (onAuthRequired?: () => void) => {
       });
     }
   }, [simulationError, toast]);
+
+  // Handle guest simulation errors
+  useEffect(() => {
+    if (guestSimulationError) {
+      console.error('Guest simulation error:', guestSimulationError);
+      setIsRunning(false);
+      toast({
+        title: "Simulation failed",
+        description: guestSimulationError.message || "An error occurred during guest simulation",
+        variant: "destructive",
+      });
+    }
+  }, [guestSimulationError, toast]);
 
   const runSimulation = async (
     ideaText: string,
@@ -110,37 +126,42 @@ export const useSimulation = (onAuthRequired?: () => void) => {
     setProgress(0);
 
     try {
-      // For guest simulation, we'll use a mock result since we don't have guest endpoints
-      // In a real implementation, you might want to create a guest simulation endpoint
-      const mockResult: SimulationResult = {
-        experimentId: 'guest-simulation',
-        status: 'completed',
-        totalProcessed: 10,
-        totalPersonas: 10,
-        sentimentBreakdown: {
-          adopt: { count: 3, percentage: "30.0" },
-          mixed: { count: 4, percentage: "40.0" },
-          not: { count: 3, percentage: "30.0" }
-        },
-        propertyDistributions: {},
-        recommendation: "This is a guest simulation result. Sign up to get full analysis.",
-        title: "Guest Simulation"
-      };
-
-      // Mark guest mode as used
-      markGuestModeUsed();
-
-      // Store results in localStorage
-      localStorage.setItem(GUEST_RESULT_KEY, JSON.stringify(mockResult));
-
-      toast({
-        title: "Simulation complete!",
-        description: `Processed ${mockResult.totalProcessed} personas successfully`,
+      const { data } = await runGuestSimulationMutation({
+        variables: {
+          guestData: {
+            ideaText,
+            questionText: "Based on this information, how likely are you to purchase this product?"
+          }
+        }
       });
+      
+      // Set the result and stop running
+      if (data?.runGuestSimulation) {
+        const result = data.runGuestSimulation;
+        setResult(result);
+        setIsRunning(false);
+        
+        // Mark guest mode as used
+        markGuestModeUsed();
 
-      return mockResult;
+        // Store results in localStorage for guest mode
+        const resultWithIdea = {
+          ...result,
+          ideaText: ideaText // Add the idea text to the stored result
+        };
+        localStorage.setItem(GUEST_RESULT_KEY, JSON.stringify(resultWithIdea));
+
+        toast({
+          title: "Simulation complete!",
+          description: `Processed ${result.totalProcessed} personas successfully`,
+        });
+        
+        return result;
+      }
+      
+      return null;
     } catch (error) {
-      console.error("Unexpected guest simulation error:", error);
+      console.error("Guest simulation error:", error);
       toast({
         title: "Simulation failed",
         description: error instanceof Error ? error.message : "An unexpected error occurred",

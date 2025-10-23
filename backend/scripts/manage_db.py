@@ -216,8 +216,8 @@ async def seed_personas():
                 short_description="Broad market testing",
                 source="manual",
                 status="completed",
-                personas_generated=100,
-                total_personas=100
+                personas_generated=50,
+                total_personas=50
             )
             session.add(job)
             await session.flush()  # Get the ID

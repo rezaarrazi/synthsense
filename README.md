@@ -101,80 +101,24 @@ A modern web application for conducting AI-powered consumer research using synth
 
 3. **Start the services**
    ```bash
-   docker-compose up -d
+   docker-compose up
    ```
+   
+   That's it! The application will automatically:
+   - ✅ Wait for the database to be ready
+   - ✅ Run database migrations
+   - ✅ Seed initial data (test user + 50 personas)
+   - ✅ Start all services
 
-4. **Run database migrations**
-   ```bash
-   docker-compose exec backend uv run alembic upgrade head
-   ```
-
-5. **Seed initial data**
-   ```bash
-   docker-compose exec backend python scripts/manage_db.py seed
-   ```
-
-6. **Access the application**
+4. **Access the application**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - GraphQL Playground: http://localhost:8000/graphql
 
-7. **Run integration tests** (optional)
+5. **Run tests** (optional)
    ```bash
    # Run tests against the running application
    docker-compose exec backend uv run pytest tests/test_simple_integration.py tests/test_graphql_live.py -v
-   
-   # Or use the dedicated test service
-   docker-compose run --rm backend-test
-   ```
-
-### Local Development
-
-#### Backend Setup
-
-1. **Navigate to backend directory**
-   ```bash
-   cd backend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   uv sync
-   ```
-
-3. **Set up PostgreSQL**
-   ```bash
-   # Start PostgreSQL (using Docker)
-   docker run --name synthsense-postgres -e POSTGRES_PASSWORD=password -e POSTGRES_DB=synthsense -p 5432:5432 -d postgres:15-alpine
-   ```
-
-4. **Run database setup**
-   ```bash
-   uv run python scripts/manage_db.py create
-   uv run alembic upgrade head
-   uv run python scripts/manage_db.py seed
-   ```
-
-5. **Start the development server**
-   ```bash
-   uv run python scripts/dev.py serve
-   ```
-
-#### Frontend Setup
-
-1. **Navigate to frontend directory**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**
-   ```bash
-   npm run dev
    ```
 
 ## 🔧 Development

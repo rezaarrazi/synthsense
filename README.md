@@ -269,27 +269,6 @@ docker-compose exec backend uv run pytest tests/test_simple_integration.py tests
 - `runSimulation` mutation - Run simulation
 - `experiment` query - Get experiment details
 
-#### GraphQL Examples
-```graphql
-query GetExperiments {
-  experiments {
-    id
-    ideaText
-    status
-    resultsSummary
-  }
-}
-
-mutation RunSimulation($experimentData: ExperimentCreateInput!) {
-  runSimulation(experimentData: $experimentData) {
-    experimentId
-    status
-    sentimentBreakdown
-    recommendation
-  }
-}
-```
-
 ## 🧪 Testing & Quality Assurance
 
 ### Comprehensive Test Suite

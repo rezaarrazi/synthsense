@@ -2,6 +2,8 @@
 
 A comprehensive full-stack web application for conducting AI-powered consumer research using synthetic personas. This project demonstrates modern software engineering practices with a complete tech stack including FastAPI, GraphQL, PostgreSQL, React, and advanced AI integration.
 
+🌐 **Live Demo**: [https://synth-sense.com/](https://synth-sense.com/)
+
 ## 📚 Research Foundation
 
 This project is a practical implementation of the research paper **"Follow-up Likert Rating: A Novel Approach for Enhanced Consumer Research with AI Personas"** ([arXiv:2510.08338](https://arxiv.org/pdf/2510.08338)). The implementation specifically focuses on the **Follow-up Likert Rating (FLR)** methodology, one of three synthetic response generation strategies presented in the paper.
@@ -212,9 +214,10 @@ Based on the research findings, our FLR implementation achieves:
    - ✅ Start all services
 
 4. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-   - GraphQL Playground: http://localhost:8000/graphql
+   - **Live Demo**: https://synth-sense.com/
+   - **Local Frontend**: http://localhost:3000
+   - **Local Backend API**: http://localhost:8000
+   - **GraphQL Playground**: http://localhost:8000/graphql
 
 5. **Run tests** (optional)
    ```bash
@@ -250,7 +253,8 @@ docker-compose exec backend uv run pytest tests/test_simple_integration.py tests
 
 ### API Documentation
 
-- **GraphQL Playground**: http://localhost:8000/graphql
+- **Live Demo**: https://synth-sense.com/
+- **GraphQL Playground**: http://localhost:8000/graphql (local development)
 - **GraphQL Schema**: Explore the full schema and run queries interactively
 
 ### Key GraphQL Operations
@@ -480,6 +484,7 @@ mutation ChatWithPersona($input: ChatWithPersonaInput!) {
 ```
 
 ### REST API Endpoints
+- **Live Demo**: https://synth-sense.com/
 - **Health Check**: `GET /health` - Service health status
 - **API Documentation**: `GET /docs` - Interactive FastAPI documentation
 - **GraphQL Playground**: `GET /graphql` - Interactive GraphQL interface

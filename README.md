@@ -204,7 +204,7 @@ Based on the research findings, our FLR implementation achieves:
 
 3. **Start the services**
    ```bash
-   docker-compose up
+   docker-compose up --build
    ```
    
    That's it! The application will automatically:

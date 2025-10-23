@@ -55,17 +55,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem('access_token');
       setUser(null);
       setLoading(false);
-    }
-    // Don't set loading to false if we're still loading the me query
-  }, [meData, meError]);
-
-  // Handle case where there's no token (query is skipped)
-  useEffect(() => {
-    if (!localStorage.getItem('access_token') && !meLoading) {
+    } else if (!meLoading) {
+      // Query finished loading but no user data - user is not authenticated
       setUser(null);
       setLoading(false);
     }
-  }, [meLoading]);
+  }, [meData, meError, meLoading]);
+
+  // Handle case where there's no token (query is skipped)
+  useEffect(() => {
+    if (!localStorage.getItem('access_token')) {
+      setUser(null);
+      setLoading(false);
+    }
+  }, []);
 
   // Signup mutation
   const [signupMutation, { data: signupData, error: signupError }] = useMutation(SIGNUP_MUTATION);
@@ -153,12 +156,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updateUserState(null);
   }, [client, updateUserState]);
 
-  const loadingState = loading || (meLoading && !user && localStorage.getItem('access_token'));
-  console.log('AuthProvider returning - user:', user?.id || 'null', 'loading:', loadingState);
+  console.log('AuthProvider returning - user:', user?.id || 'null', 'loading:', loading);
 
   const value = {
     user,
-    loading: loadingState,
+    loading: loading,
     signup,
     login,
     signOut

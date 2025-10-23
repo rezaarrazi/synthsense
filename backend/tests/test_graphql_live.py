@@ -36,8 +36,8 @@ test_engine = create_engine(TEST_DATABASE_URL, echo=False)
 # Create test sync session factory
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
-# GraphQL endpoint URL
-GRAPHQL_URL = "http://localhost:8000/graphql"
+# GraphQL endpoint URL - use environment variable or default to localhost
+GRAPHQL_URL = os.getenv("GRAPHQL_URL", "http://localhost:8000/graphql")
 
 
 @pytest.fixture(scope="function")

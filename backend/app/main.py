@@ -1,15 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api.auth import router as auth_router
-from app.api.experiments import router as experiments_router
-from app.api.personas import router as personas_router
-from app.api.streaming import router as streaming_router
 from app.graphql.main import graphql_app
 
 app = FastAPI(
     title="SynthSense API",
-    description="Synthetic Consumer Research Platform",
+    description="Synthetic Consumer Research Platform - GraphQL API",
     version="0.1.0",
     debug=settings.DEBUG,
 )
@@ -23,19 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth_router)
-app.include_router(experiments_router)
-app.include_router(personas_router)
-app.include_router(streaming_router)
-
 # Add GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")
 
 
 @app.get("/")
 async def root():
-    return {"message": "SynthSense API is running"}
+    return {"message": "SynthSense GraphQL API is running"}
 
 @app.get("/health")
 async def health_check():

@@ -71,32 +71,20 @@ A modern web application for conducting AI-powered consumer research using synth
 
 2. **Set up environment variables**
    ```bash
-   # Copy example files
-   cp .env.example .env
+   # Copy the example environment file
    cp backend/env.example backend/.env
-   cp frontend/env.example frontend/.env
    ```
    
-   Edit the `.env` files with your configuration:
+   Edit `backend/.env` with your configuration:
    ```env
-   # .env (for Docker Compose)
-   DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/synthsense
-   JWT_SECRET=your-secret-key-change-in-production
-   OPENAI_API_KEY=your-openai-api-key-here
-   GEMINI_API_KEY=your-gemini-key-here
-   LLM_PROVIDER=openai
-   MODEL=gpt-4o
-   
-   # backend/.env
    DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/synthsense
    JWT_SECRET=your-secret-key-change-in-production
-   OPENAI_API_KEY=your-openai-api-key-here
-   GEMINI_API_KEY=your-gemini-key-here
-   LLM_PROVIDER=openai
-   MODEL=gpt-4o
-   
-   # frontend/.env
-   VITE_API_URL=http://localhost:8000
+   OPENAI_API_KEY=sk-your-openai-key-here   # Add your API key
+   GEMINI_API_KEY=your-gemini-key-here      # Add your API key
+   LLM_PROVIDER=openai                      # or gemini
+   MODEL=gpt-4o                             # or gemini-1.5-pro
+   ENVIRONMENT=development
+   DEBUG=true
    ```
 
 3. **Start the services**
@@ -149,23 +137,22 @@ docker-compose exec backend uv run pytest tests/test_simple_integration.py tests
 
 ### API Documentation
 
-- **REST API**: http://localhost:8000/docs (Swagger UI)
 - **GraphQL Playground**: http://localhost:8000/graphql
-- **ReDoc**: http://localhost:8000/redoc
+- **GraphQL Schema**: Explore the full schema and run queries interactively
 
-### Key API Endpoints
+### Key GraphQL Operations
 
 #### Authentication
-- `POST /api/auth/signup` - Create user account
-- `POST /api/auth/login` - Authenticate user
-- `GET /api/auth/me` - Get current user
+- `signup` mutation - Create user account
+- `login` mutation - Authenticate user
+- `me` query - Get current user
 
 #### Experiments
-- `GET /api/experiments` - List experiments
-- `POST /api/experiments/simulate` - Run simulation
-- `GET /api/experiments/{id}` - Get experiment details
+- `experiments` query - List experiments
+- `runSimulation` mutation - Run simulation
+- `experiment` query - Get experiment details
 
-#### GraphQL Queries
+#### GraphQL Examples
 ```graphql
 query GetExperiments {
   experiments {

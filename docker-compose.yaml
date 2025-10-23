@@ -24,11 +24,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     container_name: synthsense-backend
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/synthsense
-      JWT_SECRET: your-secret-key-change-in-production
-      ENVIRONMENT: development
-      DEBUG: true
     ports:
       - "8000:8000"
     volumes:

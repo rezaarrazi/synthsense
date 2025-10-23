@@ -65,24 +65,32 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
     }
   }, [user, refetch]);
 
-  const [deleteCohort, { loading: isDeleting }] = useMutation(DELETE_COHORT_MUTATION, {
+  const [deleteCohort, { loading: isDeleting, data: deleteData, error: deleteError }] = useMutation(DELETE_COHORT_MUTATION, {
     refetchQueries: [GET_PERSONA_GROUPS_QUERY],
-    onCompleted: () => {
+  });
+
+  // Handle delete completion
+  useEffect(() => {
+    if (deleteData) {
       toast({
         title: "Cohort deleted",
         description: "The cohort has been successfully deleted.",
       });
       setDeleteDialogOpen(false);
       setCohortToDelete(null);
-    },
-    onError: (error) => {
+    }
+  }, [deleteData, toast]);
+
+  // Handle delete errors
+  useEffect(() => {
+    if (deleteError) {
       toast({
         title: "Delete failed",
-        description: error.message || "Failed to delete cohort",
+        description: deleteError.message || "Failed to delete cohort",
         variant: "destructive",
       });
-    },
-  });
+    }
+  }, [deleteError, toast]);
 
   useEffect(() => {
     if (personaGroupsData?.personaGroups) {

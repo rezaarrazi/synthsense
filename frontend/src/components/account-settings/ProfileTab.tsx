@@ -5,16 +5,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvatarUpload } from "./AvatarUpload";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const ProfileTab = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: user?.user_metadata?.first_name || "",
-    lastName: user?.user_metadata?.last_name || "",
-    company: user?.user_metadata?.company || "",
-    jobTitle: user?.user_metadata?.job_title || "",
+    firstName: user?.full_name?.split(' ')[0] || "",
+    lastName: user?.full_name?.split(' ').slice(1).join(' ') || "",
+    company: "",
+    jobTitle: "",
   });
 
   const handleInputChange = (field: string, value: string) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -158,6 +158,11 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
           <DialogTitle className="text-2xl font-bold text-center">
             {mode === "signup" ? "Create your account" : "Welcome back"}
           </DialogTitle>
+          <DialogDescription className="text-center text-muted-foreground text-sm">
+            {mode === "signup" 
+              ? "Welcome! Please fill in the details to get started."
+              : "Sign in to continue to SynthSense"}
+          </DialogDescription>
           
           {message && (
             <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
@@ -166,12 +171,6 @@ export const AuthDialog = ({ open, onOpenChange, defaultMode = "signup", message
               </p>
             </div>
           )}
-          
-          <p className="text-center text-muted-foreground text-sm">
-            {mode === "signup" 
-              ? "Welcome! Please fill in the details to get started."
-              : "Sign in to continue to SynthSense"}
-          </p>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">

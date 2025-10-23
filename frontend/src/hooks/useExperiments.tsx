@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client';
 import { GET_EXPERIMENTS_QUERY } from '../graphql/queries';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Experiment {
   id: string;

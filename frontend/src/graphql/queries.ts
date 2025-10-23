@@ -254,13 +254,3 @@ export const CHAT_WITH_PERSONA_MUTATION = gql`
     }
   }
 `;
-
-export const CHAT_WITH_PERSONA_STREAM_MUTATION = gql`
-  mutation ChatWithPersonaStream($token: String!, $conversationId: String!, $personaId: String!, $message: String!) {
-    chatWithPersonaStream(token: $token, conversationId: $conversationId, personaId: $personaId, message: $message) {
-      content
-      conversationId
-      isFinal
-    }
-  }
-`;

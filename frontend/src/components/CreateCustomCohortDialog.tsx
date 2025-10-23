@@ -47,40 +47,14 @@ export const CreateCustomCohortDialog = ({
     },
     skip: !currentJobId,
     pollInterval: 2000, // Poll every 2 seconds
-    onCompleted: (data) => {
-      console.log('Job polling completed:', data);
-      if (data?.personaGenerationJob) {
-        const job = data.personaGenerationJob;
-        console.log('Job status:', job.status, 'Personas generated:', job.personasGenerated);
-        
-        if (job.status === 'completed') {
-          stopPolling();
-          setCurrentJobId(null);
-          toast({
-            title: "Cohort created successfully!",
-            description: `Generated ${job.personasGenerated} personas for "${cohortName}".`,
-          });
-          setCohortName("");
-          setAudienceDescription("");
-          onOpenChange(false);
-          onSuccess();
-        } else if (job.status === 'failed') {
-          stopPolling();
-          setCurrentJobId(null);
-          toast({
-            title: "Cohort generation failed",
-            description: job.errorMessage || "Failed to generate personas",
-            variant: "destructive",
-          });
-        }
-      } else {
-        console.log('No job data found in response');
-      }
-    },
-    onError: (error) => {
-      console.error('Job polling error:', error);
-    },
   });
+
+  // Handle job polling errors
+  useEffect(() => {
+    if (jobError) {
+      console.error('Job polling error:', jobError);
+    }
+  }, [jobError]);
 
   // Handle job completion via useEffect as backup
   useEffect(() => {

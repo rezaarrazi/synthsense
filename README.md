@@ -617,55 +617,6 @@ query GetExperimentResponses {
 }
 ```
 
-### Real-World Use Cases
-
-#### E-commerce Product Testing
-```graphql
-mutation TestEcommerceProduct {
-  runGuestSimulation(guestData: {
-    ideaText: "A smart water bottle that tracks your hydration and reminds you to drink water throughout the day. It syncs with your phone and provides personalized hydration goals."
-    questionText: "How likely would you be to purchase this smart water bottle for $49?"
-  }) {
-    sentimentBreakdown
-    recommendation
-    title
-  }
-}
-```
-
-#### SaaS Product Validation
-```graphql
-mutation TestSaaSProduct {
-  runSimulation(
-    token: "YOUR_TOKEN"
-    experimentData: {
-      ideaText: "A project management tool specifically designed for remote teams, featuring AI-powered task prioritization and automated standup meeting summaries"
-      questionText: "How likely would you be to switch from your current project management tool to this new solution?"
-      personaGroup: "General Audience"
-    }
-  ) {
-    sentimentBreakdown
-    propertyDistributions
-    recommendation
-  }
-}
-```
-
-#### Marketing Campaign Testing
-```graphql
-mutation TestMarketingCampaign {
-  runGuestSimulation(guestData: {
-    ideaText: "A new meal delivery service that focuses on plant-based, organic meals delivered in eco-friendly packaging. Each meal costs $12-15 and comes with detailed nutritional information."
-    questionText: "How likely would you be to try this meal delivery service?"
-  }) {
-    sentimentBreakdown
-    recommendation
-    personas
-    responses
-  }
-}
-```
-
 ### Tips for Using These Examples
 
 1. **Start with Guest Simulations**: No authentication required - perfect for testing

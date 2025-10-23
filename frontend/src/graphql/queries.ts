@@ -187,7 +187,10 @@ export const UPDATE_EXPERIMENT_TITLE_MUTATION = gql`
 // Persona queries and mutations
 export const GET_PERSONA_GROUPS_QUERY = gql`
   query GetPersonaGroups {
-    personaGroups
+    personaGroups {
+      name
+      count
+    }
   }
 `;
 

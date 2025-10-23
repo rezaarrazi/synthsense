@@ -86,11 +86,11 @@ export const PersonaGroupSelect = ({ value, onChange, onCountChange, onReady }: 
 
   useEffect(() => {
     if (personaGroupsData?.personaGroups) {
-      const groupOptions: PersonaGroupOption[] = personaGroupsData.personaGroups.map((group: string) => ({
-        value: group,
-        label: group,
-        description: group === 'General Audience' ? 'Broad market testing' : 'Custom cohort',
-        count: 50, // Default count, could be fetched from backend
+      const groupOptions: PersonaGroupOption[] = personaGroupsData.personaGroups.map((group: { name: string; count: number }) => ({
+        value: group.name,
+        label: group.name,
+        description: group.name === 'General Audience' ? 'Broad market testing' : 'Custom cohort',
+        count: group.count,
       }));
 
       setOptions(groupOptions);

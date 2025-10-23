@@ -2,24 +2,31 @@ import strawberry
 from typing import Optional, List
 from sqlalchemy import select, or_
 from app.models.persona import Persona, PersonaGenerationJob
-from app.graphql.schema import PersonaType, PersonaGenerationJobType
+from app.graphql.schema import PersonaType, PersonaGenerationJobType, PersonaGroupType
 
 
 @strawberry.type
 class PersonaQuery:
     @strawberry.field
-    def persona_groups(self) -> List[str]:
-        """Get list of available persona groups."""
+    def persona_groups(self) -> List[PersonaGroupType]:
+        """Get list of available persona groups with counts."""
         from app.database import get_db_session_sync
         with get_db_session_sync() as db:
+            # Get completed persona generation jobs with their persona counts
             result = db.execute(
-                select(PersonaGenerationJob.persona_group)
+                select(PersonaGenerationJob.persona_group, PersonaGenerationJob.personas_generated)
                 .where(PersonaGenerationJob.status == "completed")
                 .distinct()
                 .order_by(PersonaGenerationJob.persona_group)
             )
-            groups = result.scalars().all()
-            return list(groups)
+            groups_data = result.all()
+            
+            # Convert to PersonaGroupType objects
+            groups = [
+                PersonaGroupType(name=group_name, count=count)
+                for group_name, count in groups_data
+            ]
+            return groups
     
     @strawberry.field
     def persona_generation_job(

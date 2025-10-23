@@ -57,6 +57,12 @@ class PersonaType:
 
 
 @strawberry.type
+class PersonaGroupType:
+    name: str
+    count: int
+
+
+@strawberry.type
 class SurveyResponseType:
     id: UUID
     experiment_id: UUID

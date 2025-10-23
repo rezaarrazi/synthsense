@@ -39,6 +39,7 @@ A modern web application for conducting AI-powered consumer research using synth
 - **PostgreSQL**: Primary database
 - **JWT**: Authentication
 - **uv**: Python package management
+- **pytest**: Testing framework with integration tests
 
 ### Frontend
 - **React**: UI framework
@@ -118,6 +119,15 @@ A modern web application for conducting AI-powered consumer research using synth
    - Backend API: http://localhost:8000
    - GraphQL Playground: http://localhost:8000/graphql
 
+7. **Run integration tests** (optional)
+   ```bash
+   # Run tests against the running application
+   docker-compose exec backend uv run pytest tests/test_simple_integration.py tests/test_graphql_live.py -v
+   
+   # Or use the dedicated test service
+   docker-compose run --rm backend-test
+   ```
+
 ### Local Development
 
 #### Backend Setup
@@ -188,6 +198,9 @@ uv run python scripts/dev.py db-reset
 
 # Run tests
 uv run python scripts/dev.py test
+
+# Run integration tests (requires running app)
+docker-compose exec backend uv run pytest tests/test_simple_integration.py tests/test_graphql_live.py -v
 ```
 
 ### API Documentation
@@ -231,11 +244,53 @@ mutation RunSimulation($experimentData: ExperimentCreateInput!) {
 
 ## 🧪 Testing
 
-### Backend Tests
+### Backend Integration Tests
+
+The backend includes comprehensive integration tests that test actual GraphQL mutations with real PostgreSQL database:
+
+#### Test Coverage
+- **17 tests total** covering core functionality and GraphQL mutations
+- **3 GraphQL mutations tested**: `runSimulation`, `generateCustomCohort`, `chatWithPersona`
+- **Real database integration** with PostgreSQL
+- **Authentication testing** with JWT tokens
+- **Error handling** for invalid tokens and nonexistent resources
+
+#### Running Tests
+
+**Using Docker (Recommended):**
+```bash
+# Start the services first
+docker-compose up -d postgres backend
+
+# Run integration tests against the running app
+docker-compose exec backend uv run pytest tests/test_simple_integration.py tests/test_graphql_live.py -v
+
+# Results: 17 passed, 2 warnings in 3.34s
+```
+
+**Using Docker Compose Test Service:**
+```bash
+# Run tests using the dedicated test service
+docker-compose run --rm backend-test
+
+# This automatically starts postgres and runs all tests
+```
+
+**Local Development:**
 ```bash
 cd backend
-uv run pytest tests/ -v
+uv run pytest tests/test_simple_integration.py tests/test_graphql_live.py -v
 ```
+
+#### Test Files
+- **`test_simple_integration.py`** (7 tests) - Basic database and authentication tests
+- **`test_graphql_live.py`** (10 tests) - Live GraphQL mutation tests with HTTP requests
+- **`conftest.py`** - Pytest configuration and fixtures
+
+#### Test Database
+- Uses separate `synthsense_test` database
+- Automatic cleanup between tests
+- Seeded with test user (`test@example.com` / `test`) and sample personas
 
 ### Frontend Tests
 ```bash

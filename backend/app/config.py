@@ -6,6 +6,7 @@ import os
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/synthsense"
+    TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:password@postgres:5432/synthsense_test"
     
     # JWT
     JWT_SECRET: str = "your-secret-key-change-in-production"

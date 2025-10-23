@@ -66,6 +66,28 @@ services:
     networks:
       - synthsense-network
 
+  # Backend Integration Tests Service
+  # Runs pytest against the running backend app container
+  # Tests GraphQL mutations: runSimulation, generateCustomCohort, chatWithPersona
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: synthsense-backend-test
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@postgres:5432/synthsense_test
+      JWT_SECRET: your-secret-key-change-in-production
+      ENVIRONMENT: testing
+      DEBUG: true
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uv", "run", "pytest", "tests/test_simple_integration.py", "tests/test_graphql_live.py", "-v"]
+    networks:
+      - synthsense-network
+
 volumes:
   postgres_data:
 

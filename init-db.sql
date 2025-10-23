@@ -7,5 +7,8 @@
 -- Create extensions if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Create test database
+CREATE DATABASE synthsense_test;
+
 -- You can add any initial data or configuration here
 -- For example, creating additional users or setting up initial permissions

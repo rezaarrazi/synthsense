@@ -483,6 +483,219 @@ mutation ChatWithPersona($input: ChatWithPersonaInput!) {
 }
 ```
 
+## 🚀 Working Examples
+
+Here are practical examples you can run directly in the GraphQL playground at `http://localhost:8000/graphql`:
+
+### Quick Start - Guest Simulation (No Auth Required)
+
+```graphql
+mutation RunGuestSimulation {
+  runGuestSimulation(guestData: {
+    ideaText: "A new AI-powered fitness app that creates personalized workout plans based on your schedule and preferences"
+    questionText: "How likely would you be to download and use this fitness app?"
+  }) {
+    experimentId
+    status
+    totalProcessed
+    totalPersonas
+    sentimentBreakdown
+    propertyDistributions
+    recommendation
+    title
+    personas
+    responses
+  }
+}
+```
+
+### Complete User Workflow
+
+#### 1. Register a New User
+```graphql
+mutation Signup {
+  signup(userData: {
+    email: "demo@example.com"
+    password: "demo123"
+    fullName: "Demo User"
+  }) {
+    accessToken
+    tokenType
+    user {
+      id
+      email
+      fullName
+      avatarUrl
+      createdAt
+    }
+  }
+}
+```
+
+#### 2. Get Available Persona Groups
+```graphql
+query GetPersonaGroups {
+  personaGroups {
+    name
+    count
+  }
+}
+```
+
+#### 3. Run Authenticated Simulation
+```graphql
+mutation RunSimulation {
+  runSimulation(
+    token: "YOUR_ACCESS_TOKEN_FROM_SIGNUP"
+    experimentData: {
+      ideaText: "A subscription service that delivers fresh, locally-sourced ingredients for home cooking"
+      questionText: "How likely would you be to subscribe to this meal kit service?"
+      personaGroup: "General Audience"
+    }
+  ) {
+    experimentId
+    status
+    totalProcessed
+    totalPersonas
+    sentimentBreakdown
+    propertyDistributions
+    recommendation
+    title
+  }
+}
+```
+
+#### 4. View Your Experiments
+```graphql
+query GetExperiments {
+  experiments(token: "YOUR_ACCESS_TOKEN_FROM_SIGNUP") {
+    id
+    ideaText
+    status
+    title
+    personaCount
+    resultsSummary
+    recommendedNextStep
+    createdAt
+  }
+}
+```
+
+### Advanced Examples
+
+#### Generate Custom Persona Cohort
+```graphql
+mutation GenerateCustomCohort {
+  generateCustomCohort(cohortData: {
+    audienceDescription: "Tech-savvy millennials who love sustainable products and are willing to pay premium prices for quality"
+    personaGroup: "Eco-Tech Millennials"
+  }) {
+    id
+    userId
+    audienceDescription
+    personaGroup
+    status
+    personasGenerated
+    totalPersonas
+    createdAt
+  }
+}
+```
+
+#### Chat with Individual Personas
+```graphql
+mutation ChatWithPersona {
+  chatWithPersona(
+    token: "YOUR_ACCESS_TOKEN"
+    conversationId: "conversation-123"
+    personaId: "PERSONA_ID_FROM_PREVIOUS_QUERIES"
+    message: "What are your thoughts on sustainable fashion and would you pay more for eco-friendly clothing?"
+  ) {
+    message
+    conversationId
+  }
+}
+```
+
+#### Get Detailed Experiment Results
+```graphql
+query GetExperimentResponses {
+  experimentResponses(
+    token: "YOUR_ACCESS_TOKEN"
+    experimentId: "EXPERIMENT_ID_FROM_PREVIOUS_QUERIES"
+  ) {
+    id
+    responseText
+    likert
+    responseMetadata
+    createdAt
+    persona {
+      id
+      personaName
+      personaData
+    }
+  }
+}
+```
+
+### Real-World Use Cases
+
+#### E-commerce Product Testing
+```graphql
+mutation TestEcommerceProduct {
+  runGuestSimulation(guestData: {
+    ideaText: "A smart water bottle that tracks your hydration and reminds you to drink water throughout the day. It syncs with your phone and provides personalized hydration goals."
+    questionText: "How likely would you be to purchase this smart water bottle for $49?"
+  }) {
+    sentimentBreakdown
+    recommendation
+    title
+  }
+}
+```
+
+#### SaaS Product Validation
+```graphql
+mutation TestSaaSProduct {
+  runSimulation(
+    token: "YOUR_TOKEN"
+    experimentData: {
+      ideaText: "A project management tool specifically designed for remote teams, featuring AI-powered task prioritization and automated standup meeting summaries"
+      questionText: "How likely would you be to switch from your current project management tool to this new solution?"
+      personaGroup: "General Audience"
+    }
+  ) {
+    sentimentBreakdown
+    propertyDistributions
+    recommendation
+  }
+}
+```
+
+#### Marketing Campaign Testing
+```graphql
+mutation TestMarketingCampaign {
+  runGuestSimulation(guestData: {
+    ideaText: "A new meal delivery service that focuses on plant-based, organic meals delivered in eco-friendly packaging. Each meal costs $12-15 and comes with detailed nutritional information."
+    questionText: "How likely would you be to try this meal delivery service?"
+  }) {
+    sentimentBreakdown
+    recommendation
+    personas
+    responses
+  }
+}
+```
+
+### Tips for Using These Examples
+
+1. **Start with Guest Simulations**: No authentication required - perfect for testing
+2. **Copy the Access Token**: From signup/login responses to use in authenticated queries
+3. **Use Variables**: In GraphQL playground, use the Variables panel for dynamic values
+4. **Check Persona Groups**: Run `personaGroups` query to see available cohorts
+5. **Monitor Job Status**: For custom persona generation, check job status regularly
+6. **Explore Results**: Use `experimentResponses` to dive deep into individual persona feedback
+
 ### REST API Endpoints
 - **Live Demo**: https://synth-sense.com/
 - **Health Check**: `GET /health` - Service health status
